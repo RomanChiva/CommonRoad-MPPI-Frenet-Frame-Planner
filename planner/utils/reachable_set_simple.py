@@ -2,7 +2,7 @@
 
 import numpy as np
 import math
-from EthicalTrajectoryPlanning.planner.utils import shapely_conversions
+from PA_CommonRoad.planner.utils import shapely_conversions
 import pygeos
 
 

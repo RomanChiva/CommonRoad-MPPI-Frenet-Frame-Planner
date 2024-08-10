@@ -1,16 +1,16 @@
 """Risk cost function and principles of ethics of risk."""
 
-from EthicalTrajectoryPlanning.planner.Frenet.utils.validity_checks import create_collision_object
+from PA_CommonRoad.planner.Frenet.utils.validity_checks import create_collision_object
 from commonroad_dc.collision.trajectory_queries import trajectory_queries
 
-from EthicalTrajectoryPlanning.risk_assessment.harm_estimation import get_harm
-from EthicalTrajectoryPlanning.risk_assessment.collision_probability import (
+from PA_CommonRoad.risk_assessment.harm_estimation import get_harm
+from PA_CommonRoad.risk_assessment.collision_probability import (
     get_collision_probability_fast,
     get_inv_mahalanobis_dist
 )
-from EthicalTrajectoryPlanning.risk_assessment.helpers.timers import ExecTimer
-from EthicalTrajectoryPlanning.planner.utils.responsibility import assign_responsibility_by_action_space, calc_responsibility_reach_set
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression_symmetrical import get_protected_inj_prob_log_reg_ignore_angle
+from PA_CommonRoad.risk_assessment.helpers.timers import ExecTimer
+from PA_CommonRoad.planner.utils.responsibility import assign_responsibility_by_action_space, calc_responsibility_reach_set
+from PA_CommonRoad.risk_assessment.utils.logistic_regression_symmetrical import get_protected_inj_prob_log_reg_ignore_angle
 
 
 def calc_risk(

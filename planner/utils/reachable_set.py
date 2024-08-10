@@ -4,12 +4,12 @@ import json
 import numpy as np
 
 from commonroad.scenario.scenario import Scenario
-from EthicalTrajectoryPlanning.planner.GlobalPath.lanelet_based_planner import (
+from PA_CommonRoad.planner.GlobalPath.lanelet_based_planner import (
     find_lanelet_by_position_and_orientation,
 )
-from EthicalTrajectoryPlanning.planner.utils import reachable_set_simple
-from EthicalTrajectoryPlanning.planner.utils.reachable_set_simple import simple_reachable_set
-from EthicalTrajectoryPlanning.planner.utils.responsibility import polygon_padding
+from PA_CommonRoad.planner.utils import reachable_set_simple
+from PA_CommonRoad.planner.utils.reachable_set_simple import simple_reachable_set
+from PA_CommonRoad.planner.utils.responsibility import polygon_padding
 import pygeos
 
 

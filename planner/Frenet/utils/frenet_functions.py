@@ -26,7 +26,7 @@ from planner.Frenet.utils.calc_trajectory_cost import (
 )
 from planner.utils.timers import ExecTimer
 from planner.Frenet.utils.helper_functions import get_max_curvature
-from EthicalTrajectoryPlanning.risk_assessment.risk_costs import calc_risk
+from PA_CommonRoad.risk_assessment.risk_costs import calc_risk
 
 
 class FrenetTrajectory:

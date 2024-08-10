@@ -3,7 +3,7 @@ import pathlib
 
 import matplotlib.pyplot as plt
 import numpy as np
-from EthicalTrajectoryPlanning.planner.plannertools.scenario_handler import ScenarioHandler
+from PA_CommonRoad.planner.plannertools.scenario_handler import ScenarioHandler
 from commonroad_helper_functions.customvehicleicons import draw_obstacle
 from commonroad.visualization.draw_dispatch_cr import draw_object
 from commonroad_helper_functions.exceptions import GoalReachedNotification

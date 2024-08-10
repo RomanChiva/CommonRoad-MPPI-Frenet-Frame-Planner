@@ -19,7 +19,7 @@ from commonroad_helper_functions.exceptions import (
     GoalReachedNotification,
 )
 
-from EthicalTrajectoryPlanning.planner.plannertools.scenario_handler import ScenarioHandler
+from PA_CommonRoad.planner.plannertools.scenario_handler import ScenarioHandler
 
 
 class ScenarioEvaluator(ScenarioHandler):

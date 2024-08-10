@@ -7,9 +7,9 @@ if __name__ == "__main__":
     sys.path.append(str(pathlib.Path(__file__).resolve().parents[4]))
 
 
-from EthicalTrajectoryPlanning.planner.Frenet.configs.load_json import load_planning_json
-from EthicalTrajectoryPlanning.planner.plannertools.animate import ScenarioAnimator
-from EthicalTrajectoryPlanning.planner.Frenet.plannertools.frenetcreator import FrenetCreator
+from PA_CommonRoad.planner.Frenet.configs.load_json import load_planning_json
+from PA_CommonRoad.planner.plannertools.animate import ScenarioAnimator
+from PA_CommonRoad.planner.Frenet.plannertools.frenetcreator import FrenetCreator
 
 
 if __name__ == "__main__":

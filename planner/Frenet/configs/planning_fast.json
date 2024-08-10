@@ -5,7 +5,7 @@
     "vehicle_type": "bmw_320i"
   },
   "frenet_settings": {
-    "mode": "risk",
+    "mode": "WaleNet",
     "frenet_parameters": {
       "t_list": [2.0],
       "v_list_generation_mode": "linspace",

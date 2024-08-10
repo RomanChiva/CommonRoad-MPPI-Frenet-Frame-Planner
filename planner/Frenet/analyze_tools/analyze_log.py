@@ -23,16 +23,16 @@ mopl_path = os.path.dirname(
 )
 sys.path.append(mopl_path)
 
-from EthicalTrajectoryPlanning.planner.Frenet.utils.logging import read_all_data
-from EthicalTrajectoryPlanning.planner.Frenet.utils.visualization_utils import SliderGroup
-from EthicalTrajectoryPlanning.planner.Frenet.utils.visualization import (
+from PA_CommonRoad.planner.Frenet.utils.logging import read_all_data
+from PA_CommonRoad.planner.Frenet.utils.visualization_utils import SliderGroup
+from PA_CommonRoad.planner.Frenet.utils.visualization import (
     draw_frenet_trajectories,
     draw_reach_sets,
     draw_scenario,
 )
-from EthicalTrajectoryPlanning.planner.planning import add_ego_vehicles_to_scenario
-from EthicalTrajectoryPlanning.planner.utils.vehicleparams import VehicleParameters
-from EthicalTrajectoryPlanning.risk_assessment.helpers.coll_prob_helpers import distance
+from PA_CommonRoad.planner.planning import add_ego_vehicles_to_scenario
+from PA_CommonRoad.planner.utils.vehicleparams import VehicleParameters
+from PA_CommonRoad.risk_assessment.helpers.coll_prob_helpers import distance
 
 
 class FrenetLogVisualizer:

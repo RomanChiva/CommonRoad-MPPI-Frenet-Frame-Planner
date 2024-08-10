@@ -8,7 +8,7 @@ import numpy as np
 from scipy.stats import multivariate_normal, mvn
 from scipy.spatial.distance import mahalanobis
 import commonroad_dc.pycrcc as pycrcc
-from EthicalTrajectoryPlanning.risk_assessment.helpers.coll_prob_helpers import (
+from PA_CommonRoad.risk_assessment.helpers.coll_prob_helpers import (
     distance,
     get_unit_vector,
 )

@@ -1,7 +1,7 @@
 """Evaluate a frenet Planner."""
 
-from EthicalTrajectoryPlanning.planner.plannertools.scenario_handler import PlannerCreator
-from EthicalTrajectoryPlanning.planner.Frenet.frenet_planner import FrenetPlanner
+from PA_CommonRoad.planner.plannertools.scenario_handler import PlannerCreator
+from PA_CommonRoad.planner.Frenet.frenet_planner import FrenetPlanner_MPPI as FrenetPlanner
 
 
 class FrenetCreator(PlannerCreator):

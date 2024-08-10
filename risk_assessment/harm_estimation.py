@@ -3,35 +3,35 @@
 import numpy as np
 from commonroad.scenario.obstacle import ObstacleType
 
-from EthicalTrajectoryPlanning.risk_assessment.helpers.harm_parameters import HarmParameters
-from EthicalTrajectoryPlanning.risk_assessment.helpers.properties import calc_crash_angle, get_obstacle_mass
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression import (
+from PA_CommonRoad.risk_assessment.helpers.harm_parameters import HarmParameters
+from PA_CommonRoad.risk_assessment.helpers.properties import calc_crash_angle, get_obstacle_mass
+from PA_CommonRoad.risk_assessment.utils.logistic_regression import (
     get_protected_log_reg_harm,
     get_unprotected_log_reg_harm,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.reference_speed import (
+from PA_CommonRoad.risk_assessment.utils.reference_speed import (
     get_protected_ref_speed_harm,
     get_unprotected_ref_speed_harm,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.reference_speed_symmetrical import (
+from PA_CommonRoad.risk_assessment.utils.reference_speed_symmetrical import (
     get_protected_inj_prob_ref_speed_complete_sym,
     get_protected_inj_prob_ref_speed_ignore_angle,
     get_protected_inj_prob_ref_speed_reduced_sym,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.reference_speed_asymmetrical import (
+from PA_CommonRoad.risk_assessment.utils.reference_speed_asymmetrical import (
     get_protected_inj_prob_ref_speed_complete,
     get_protected_inj_prob_ref_speed_reduced,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.gidas import (
+from PA_CommonRoad.risk_assessment.utils.gidas import (
     get_protected_gidas_harm,
     get_unprotected_gidas_harm,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression_symmetrical import (
+from PA_CommonRoad.risk_assessment.utils.logistic_regression_symmetrical import (
     get_protected_inj_prob_log_reg_complete_sym,
     get_protected_inj_prob_log_reg_ignore_angle,
     get_protected_inj_prob_log_reg_reduced_sym,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression_asymmetrical import (
+from PA_CommonRoad.risk_assessment.utils.logistic_regression_asymmetrical import (
     get_protected_inj_prob_log_reg_complete,
     get_protected_inj_prob_log_reg_reduced,
 )

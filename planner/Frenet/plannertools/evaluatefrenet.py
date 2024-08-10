@@ -5,12 +5,12 @@ import pathlib
 if __name__ == "__main__":
     sys.path.append(str(pathlib.Path(__file__).resolve().parents[4]))
 
-    from EthicalTrajectoryPlanning.planner.plannertools.evaluate import (
+    from PA_CommonRoad.planner.plannertools.evaluate import (
         ScenarioEvaluator,
         DatasetEvaluator,
     )
-    from EthicalTrajectoryPlanning.planner.Frenet.plannertools.frenetcreator import FrenetCreator
-    from EthicalTrajectoryPlanning.planner.Frenet.configs.load_json import load_planning_json, load_weight_json, load_risk_json
+    from PA_CommonRoad.planner.Frenet.plannertools.frenetcreator import FrenetCreator
+    from PA_CommonRoad.planner.Frenet.configs.load_json import load_planning_json, load_weight_json, load_risk_json
 
 
 if __name__ == "__main__":

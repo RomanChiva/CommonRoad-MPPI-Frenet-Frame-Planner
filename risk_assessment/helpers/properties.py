@@ -2,7 +2,7 @@
 
 from commonroad.scenario.obstacle import ObstacleType
 import numpy as np
-from EthicalTrajectoryPlanning.risk_assessment.helpers.collision_helper_function import (
+from PA_CommonRoad.risk_assessment.helpers.collision_helper_function import (
     angle_range,
     create_tvobstacle,
 )

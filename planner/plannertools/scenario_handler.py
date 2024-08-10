@@ -4,12 +4,12 @@
 import numpy as np
 from commonroad.common.file_reader import CommonRoadFileReader
 
-from EthicalTrajectoryPlanning.planner.utils.timers import ExecTimer
-from EthicalTrajectoryPlanning.planner.utils.vehicleparams import VehicleParameters
-from EthicalTrajectoryPlanning.planner.utils.timeout import Timeout
+from PA_CommonRoad.planner.utils.timers import ExecTimer
+from PA_CommonRoad.planner.utils.vehicleparams import VehicleParameters
+from PA_CommonRoad.planner.utils.timeout import Timeout
 from agent_sim.agent import clean_scenario, update_scenario
 
-from EthicalTrajectoryPlanning.planner.planning import (
+from PA_CommonRoad.planner.planning import (
     PlanningAgent,
     add_ego_vehicles_to_scenario,
 )
@@ -20,16 +20,16 @@ from commonroad_dc.collision.collision_detection.pycrcc_collision_dispatch impor
     create_collision_object,
 )
 from commonroad_helper_functions.exceptions import NoLocalTrajectoryFoundError
-from EthicalTrajectoryPlanning.risk_assessment.harm_estimation import harm_model
-from EthicalTrajectoryPlanning.risk_assessment.visualization.collision_visualization import (
+from PA_CommonRoad.risk_assessment.harm_estimation import harm_model
+from PA_CommonRoad.risk_assessment.visualization.collision_visualization import (
     collision_vis,
 )
-from EthicalTrajectoryPlanning.risk_assessment.helpers.collision_helper_function import (
+from PA_CommonRoad.risk_assessment.helpers.collision_helper_function import (
     angle_range,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression_symmetrical import get_protected_inj_prob_log_reg_ignore_angle
-from EthicalTrajectoryPlanning.planner.Frenet.utils.helper_functions import create_tvobstacle
-from EthicalTrajectoryPlanning.planner.Frenet.configs.load_json import load_harm_parameter_json
+from PA_CommonRoad.risk_assessment.utils.logistic_regression_symmetrical import get_protected_inj_prob_log_reg_ignore_angle
+from PA_CommonRoad.planner.Frenet.utils.helper_functions import create_tvobstacle
+from PA_CommonRoad.planner.Frenet.configs.load_json import load_harm_parameter_json
 from commonroad.scenario.obstacle import (
     ObstacleRole,
     ObstacleType,
@@ -157,6 +157,7 @@ class ScenarioHandler:
 
         for time_step in range(max_simulation_time_steps):
             for agent in self.agent_list:
+                print("Time step: ", time_step)
                 # Also pass in timestep because it is needed in the recorder
                 # That gets derived from the evaluator
                 self._check_collision(agent=agent, time_step=time_step)

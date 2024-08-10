@@ -11,11 +11,11 @@ Validty Levels:
 import numpy as np
 
 from commonroad_dc.collision.trajectory_queries import trajectory_queries
-from EthicalTrajectoryPlanning.planner.utils.timers import ExecTimer
-from EthicalTrajectoryPlanning.planner.Frenet.utils.helper_functions import (
+from PA_CommonRoad.planner.utils.timers import ExecTimer
+from PA_CommonRoad.planner.Frenet.utils.helper_functions import (
     create_tvobstacle,
 )
-from EthicalTrajectoryPlanning.planner.Frenet.utils.prediction_helpers import (
+from PA_CommonRoad.planner.Frenet.utils.prediction_helpers import (
     collision_checker_prediction,
 )
 

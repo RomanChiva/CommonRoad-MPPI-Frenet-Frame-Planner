@@ -1,12 +1,12 @@
 """Logistic regression harm outer function."""
 
 import numpy as np
-from EthicalTrajectoryPlanning.risk_assessment.helpers.properties import calc_delta_v
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression_asymmetrical import (
+from PA_CommonRoad.risk_assessment.helpers.properties import calc_delta_v
+from PA_CommonRoad.risk_assessment.utils.logistic_regression_asymmetrical import (
     get_protected_inj_prob_log_reg_complete,
     get_protected_inj_prob_log_reg_reduced,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.logistic_regression_symmetrical import (
+from PA_CommonRoad.risk_assessment.utils.logistic_regression_symmetrical import (
     get_protected_inj_prob_log_reg_complete_sym,
     get_protected_inj_prob_log_reg_ignore_angle,
     get_protected_inj_prob_log_reg_reduced_sym,

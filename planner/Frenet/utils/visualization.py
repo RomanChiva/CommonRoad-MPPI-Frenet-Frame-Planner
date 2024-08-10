@@ -356,6 +356,7 @@ def animate_scenario(
                 ax4.scatter(j, yaw[j])
 
     plt.close()
+    print('IS THIS HAPPENING AT ALL?')
     # create the figure
     fig = plt.figure(constrained_layout=False, figsize=(22, 15))
     # set the font size
@@ -441,6 +442,7 @@ def draw_frenet_trajectories(
             show_label,
         )
 
+    
     # Draw all possible trajectories with their costs as colors
     if all_traj is not None:
 
@@ -512,6 +514,109 @@ def draw_frenet_trajectories(
     # plt.savefig(str(i).zfill(4) + ".png")
     # i += 1
     plt.pause(0.0001)
+
+
+
+
+def draw_optimal_trajectory(
+        scenario,
+        time_step: int,
+        marked_vehicle: [int] = None,
+        planning_problem=None,
+        all_trajs=None,
+        traj=None,
+        predictions: dict = None,
+        visible_area=None,
+        animation_area: float = 40.0,
+        global_path: np.ndarray = None,
+        global_path_after_goal: np.ndarray = None,
+        driven_traj=None,
+        ax=None,
+        picker=False,
+        show_label=False,
+        live=True,
+):
+    """
+    Plot all frenét trajectories.
+
+    Args:
+        scenario (Scenario): Considered Scenario.
+        time_step (int): Current time step.
+        marked_vehicle ([int]): IDs of the marked vehicles. Defaults to None.
+        planning_problem (PlanningProblem): Considered planning problem. Defaults to None.
+        traj (FrenetTrajectory): The best trajectory of all frenét trajectories. Defaults to None.
+        all_traj ([FrenetTrajectory]): All frenét trajectories. Defaults to None.
+        fut_pos_list (np.ndarray): Future positions of the vehicles. Defaults to None.
+        visible_area (shapely.Polygon): Polygon of the visible area. Defaults to None.
+        animation_area (float): Area that should be shown. Defaults to 40.0.
+        global_path (np.ndarray): Global path for the planning problem. Defaults to None.
+        global_path_after_goal (np.ndarray): Global path for the planning problem after reaching the goal. Defaults to None.
+        driven_traj ([States]): Already driven trajectory of the ego vehicle. Defaults to None.
+        save_fig (bool): True if the figure should be saved. Defaults to False.
+    """
+    
+    if live:
+        ax = draw_scenario(
+            scenario,
+            time_step,
+            marked_vehicle,
+            planning_problem,
+            traj,
+            visible_area,
+            animation_area,
+            global_path,
+            global_path_after_goal,
+            driven_traj,
+            ax,
+            picker,
+            show_label,
+        )
+
+
+    # Draw all possible trajectories with their costs as colors
+    if traj is not None:
+        # x and y axis description
+        ax.set_xlabel("x in m")
+        ax.set_ylabel("y in m")
+
+        # align ego position to the center
+
+        ax.set_xlim(
+            traj['x_m'][0] - animation_area, traj['x_m'][0] + animation_area
+        )
+        ax.set_ylim(
+            traj['y_m'][0] - animation_area / 2, traj['y_m'][0] + animation_area / 2
+        )
+
+
+        ax.plot(
+            traj['x_m'],
+            traj['y_m'],
+            alpha=1.0,
+            color="green",
+            zorder=25,
+            lw=3.0,
+            label="Best trajectory",
+            picker=picker,
+        )
+    '''
+    for traj in all_trajs:
+        x_vals = traj[:, 0]
+        y_vals = traj[:, 1]
+        ax.plot(x_vals, y_vals, alpha=0.5)
+    '''
+
+    # draw predictions
+    if predictions is not None:
+        draw_uncertain_predictions(predictions, ax)
+
+    # show the figure until the next one is ready
+    # plt.savefig(str(i).zfill(4) + ".png")
+    # i += 1
+    plt.pause(0.001)
+    
+
+
 
 
 def show_frenet_details(vehicle_params, fp_list, global_path: np.ndarray = None):

@@ -1,12 +1,12 @@
 """Reference speed outer function."""
 
 import numpy as np
-from EthicalTrajectoryPlanning.risk_assessment.helpers.properties import calc_delta_v
-from EthicalTrajectoryPlanning.risk_assessment.utils.reference_speed_asymmetrical import (
+from PA_CommonRoad.risk_assessment.helpers.properties import calc_delta_v
+from PA_CommonRoad.risk_assessment.utils.reference_speed_asymmetrical import (
     get_protected_inj_prob_ref_speed_complete,
     get_protected_inj_prob_ref_speed_reduced,
 )
-from EthicalTrajectoryPlanning.risk_assessment.utils.reference_speed_symmetrical import (
+from PA_CommonRoad.risk_assessment.utils.reference_speed_symmetrical import (
     get_protected_inj_prob_ref_speed_complete_sym,
     get_protected_inj_prob_ref_speed_ignore_angle,
     get_protected_inj_prob_ref_speed_reduced_sym,

@@ -8,7 +8,7 @@ HARM IS CALCULATED AS P(MAIS 2+)!!!
 """
 
 import numpy as np
-from EthicalTrajectoryPlanning.risk_assessment.helpers.properties import calc_delta_v
+from PA_CommonRoad.risk_assessment.helpers.properties import calc_delta_v
 
 
 def get_protected_gidas_harm(ego_vehicle, obstacle, pdof: float, coeff):

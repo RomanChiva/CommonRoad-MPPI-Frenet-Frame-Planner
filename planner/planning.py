@@ -29,7 +29,7 @@ from commonroad_helper_functions.utils.cubicspline import CubicSpline2D
 class PlanningAgent(Agent):
     def __init__(
         self,
-        scenario: Scenario,
+        scenario: Scenario, 
         agent_id: int,
         predictor=None,
         planner=None,
@@ -114,6 +114,21 @@ class PlanningAgent(Agent):
                 )
             else:
                 # assuming that the trajectory is discretized with the scenario time step size and replanned every time step
+                # i = 1
+                # self._state.position = np.array(
+                #     [
+                #         self.planner.trajectory["x_m"][i],
+                #         self.planner.trajectory["y_m"][i],
+                #     ]
+                # )
+                # self._state.orientation = self.planner.trajectory["psi_rad"][i]
+                # self._state.velocity = self.planner.trajectory["v_mps"][i]
+                # self._state.acceleration = self.planner.trajectory["ax_mps2"][i]
+
+                # self._s = self.planner.trajectory["s_loc_m"][i]
+                # self._d = self.planner.trajectory["d_loc_m"][i]
+                # self._d_d = self.planner.trajectory["d_d_loc_mps"][i]
+                # self._d_dd = self.planner.trajectory["d_dd_loc_mps2"][i]
                 i = 1
                 self._state.position = np.array(
                     [
@@ -123,12 +138,8 @@ class PlanningAgent(Agent):
                 )
                 self._state.orientation = self.planner.trajectory["psi_rad"][i]
                 self._state.velocity = self.planner.trajectory["v_mps"][i]
-                self._state.acceleration = self.planner.trajectory["ax_mps2"][i]
-
-                self._s = self.planner.trajectory["s_loc_m"][i]
-                self._d = self.planner.trajectory["d_loc_m"][i]
-                self._d_d = self.planner.trajectory["d_d_loc_mps"][i]
-                self._d_dd = self.planner.trajectory["d_dd_loc_mps2"][i]
+                self._state.steering_angle = self.planner.trajectory["delta_rad"][i]
+                self._state.acceleration = self.planner.trajectory["acceleration_mps2"][i]
 
     @property
     def predictor(self):
@@ -226,7 +237,7 @@ class Planner(object):
         self.__ego_state = planning_problem.initial_state
 
         # minimum trajectory length
-        self.__min_trajectory_length = 50
+        self.__min_trajectory_length = 20
 
         # prediction
         self.__prediction = None
@@ -249,16 +260,12 @@ class Planner(object):
         # trajectory
         dt = 0.1
         self._trajectory = {
-            "s_loc_m": np.zeros(self.min_trajectory_length),
-            "d_loc_m": np.zeros(self.min_trajectory_length),
-            "d_d_loc_mps": np.zeros(self.min_trajectory_length),
-            "d_dd_loc_mps2": np.zeros(self.min_trajectory_length),
             "x_m": np.zeros(self.min_trajectory_length),
             "y_m": np.zeros(self.min_trajectory_length),
             "psi_rad": np.zeros(self.min_trajectory_length),
-            "kappa_radpm": np.zeros(self.min_trajectory_length),
             "v_mps": np.zeros(self.min_trajectory_length),
-            "ax_mps2": np.zeros(self.min_trajectory_length),
+            "delta_rad": np.zeros(self.min_trajectory_length),  # steering angle
+            "acceleration_mps2": np.zeros(self.min_trajectory_length),
             "time_s": np.arange(0, dt * self.min_trajectory_length, dt),
         }
 
@@ -298,6 +305,7 @@ class Planner(object):
 
         # call the planner-type depending step function to generate a new trajectory
         self._step_planner()
+      
 
     def _step_planner(self):
         """Planner step function

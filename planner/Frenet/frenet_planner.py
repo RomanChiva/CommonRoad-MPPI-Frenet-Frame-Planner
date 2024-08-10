@@ -37,45 +37,65 @@ mopl_path = os.path.dirname(
 )
 sys.path.append(mopl_path)
 
-from EthicalTrajectoryPlanning.planner.planning import Planner
-from EthicalTrajectoryPlanning.planner.utils.timeout import Timeout
-from EthicalTrajectoryPlanning.planner.Frenet.utils.visualization import draw_frenet_trajectories
-from EthicalTrajectoryPlanning.planner.Frenet.utils.validity_checks import (
+from PA_CommonRoad.planner.planning import Planner
+from PA_CommonRoad.planner.utils.timeout import Timeout
+from PA_CommonRoad.planner.Frenet.utils.visualization import draw_frenet_trajectories, draw_optimal_trajectory
+from PA_CommonRoad.planner.Frenet.utils.validity_checks import (
     VALIDITY_LEVELS,
 )
-from EthicalTrajectoryPlanning.planner.Frenet.utils.helper_functions import (
+from PA_CommonRoad.planner.Frenet.utils.helper_functions import (
     get_goal_area_shape_group,
 )
-from EthicalTrajectoryPlanning.planner.Frenet.utils.prediction_helpers import (
+from PA_CommonRoad.planner.Frenet.utils.prediction_helpers import (
     add_static_obstacle_to_prediction,
     get_dyn_and_stat_obstacles,
     get_ground_truth_prediction,
     get_obstacles_in_radius,
     get_orientation_velocity_and_shape_of_prediction,
 )
-from EthicalTrajectoryPlanning.planner.Frenet.configs.load_json import (
+from PA_CommonRoad.planner.Frenet.configs.load_json import (
     load_harm_parameter_json,
     load_planning_json,
     load_risk_json,
     load_weight_json,
 )
-from EthicalTrajectoryPlanning.planner.Frenet.utils.frenet_functions import (
+from PA_CommonRoad.planner.Frenet.utils.frenet_functions import (
     calc_frenet_trajectories,
     get_v_list,
     sort_frenet_trajectories,
 )
-from EthicalTrajectoryPlanning.planner.Frenet.utils.logging import FrenetLogging
-from EthicalTrajectoryPlanning.planner.utils.responsibility import assign_responsibility_by_action_space
-from EthicalTrajectoryPlanning.planner.utils import reachable_set
-from EthicalTrajectoryPlanning.risk_assessment.visualization.risk_visualization import (
+from PA_CommonRoad.planner.Frenet.utils.logging import FrenetLogging
+from PA_CommonRoad.planner.utils.responsibility import assign_responsibility_by_action_space
+from PA_CommonRoad.planner.utils import reachable_set
+from PA_CommonRoad.risk_assessment.visualization.risk_visualization import (
     create_risk_files,
 )
-from EthicalTrajectoryPlanning.risk_assessment.visualization.risk_dashboard import risk_dashboard
+from PA_CommonRoad.risk_assessment.visualization.risk_dashboard import risk_dashboard
+
+### Frenet MPPI
+from PA_CommonRoad.planner.Frenet.MPPI_Objective_Functions.Frenet_Objective import Objective
+### MPPI Imports
+from prediction import WaleNet
+from mppi_planner.mppi_isaac import MPPIisaacPlanner
+from mppi_planner.mppi import MPPIPlanner
+from mppi_utils.config_store import ExampleConfig
+import hydra
+from hydra.experimental import initialize, compose
+import torch
+from omegaconf import OmegaConf
+from scipy.optimize import minimize
+from scipy.optimize import minimize_scalar
+import time
 
 
-class FrenetPlanner(Planner):
+
+
+
+
+class FrenetPlanner_MPPI(Planner):
     """Jerk optimal planning in frenet coordinates with quintic polynomials in lateral direction and quartic polynomials in longitudinal direction."""
 
+    # SAME INITIALIZATION AS IN THE ORIGINAL FrenetPlanner
     def __init__(
         self,
         scenario: Scenario,
@@ -106,6 +126,7 @@ class FrenetPlanner(Planner):
             weights(dict): the weights of the costfunction. Defaults to None.
         """
         super().__init__(scenario, planning_problem, ego_id, vehicle_params, exec_timer)
+
 
         # Set up logger
         self.logger = FrenetLogging(
@@ -183,6 +204,12 @@ class FrenetPlanner(Planner):
 
                 # get visualization marker
                 self.plot_frenet_trajectories = plot_frenet_trajectories
+
+                ### LOAD THE MPPI COnfigutration
+                config = self._load_config()
+                self.cfg = OmegaConf.to_object(config)
+
+
 
                 # initialize the prediction network if necessary
                 if self.mode == "WaleNet" or self.mode == "risk":
@@ -262,18 +289,41 @@ class FrenetPlanner(Planner):
         except ExecutionTimeoutError:
             raise TimeoutError
 
-    def _step_planner(self):
-        """Frenet Planner step function.
 
-        This methods overloads the basic step method. It generates a new trajectory with the jerk optimal polynomials.
+    # Load the requred MPPI Settings
+    def _load_config(self):
+        # Load Hydra configurations
+        with initialize(config_path="../conf"):
+            config = compose(config_name="config_jackal_robot")
+        return config
+
+    # Create the Planner (Wapper around the core MPPI Class to ease interactions, like an interface)
+    def _set_planner(self, cfg):
         """
-        self.exec_timer.start_timer("simulation/total")
+        Initializes the mppi planner for jackal robot.
 
+        Params
+        ----------
+        goal_position: np.ndarray
+            The goal to the motion planning problem.
+        """
+        objective = Objective(cfg, cfg.mppi.device, self.reference_spline, self.global_path)
+        mppi_planner = MPPIisaacPlanner(cfg, objective)
+
+        return mppi_planner
+
+    
+    def _step_planner(self):
+
+        """Frenet Planner step function. Generate optimal trajectory using MPPI as opposed to the splines"""
+
+        self.exec_timer.start_timer("simulation/total")
+    
         with self.exec_timer.time_with_cm("simulation/update driven trajectory"):
             # update the driven trajectory
             # add the current state to the driven path
-            if self.ego_state.time_step != 0:
 
+            if self.ego_state.time_step != 0:
                 current_state = State(
                     position=self.ego_state.position,
                     orientation=self.ego_state.orientation,
@@ -281,22 +331,44 @@ class FrenetPlanner(Planner):
                     velocity=self.ego_state.velocity,
                     acceleration=self.ego_state.acceleration,
                 )
-
+                
                 self.driven_traj.append(current_state)
 
-                # # if current position derives more than 1m from global path, replan global path from there
-                # if self.trajectory["d_loc_m"][0] > 1.0:
-                #     print("Replanning global path")
-                #     super().plan_global_path(self.scenario, self.planning_problem, self.p, initial_state=current_state)
+        
+        mppi_planner = self._set_planner(self.cfg)
+        # Steering Angle needs to be recovered two methods
 
-        # find position along the reference spline (s, s_d, s_dd, d, d_d, d_dd)
-        c_s = self.trajectory["s_loc_m"][1]
-        c_s_d = self.ego_state.velocity
-        c_s_dd = self.ego_state.acceleration
-        c_d = self.trajectory["d_loc_m"][1]
-        c_d_d = self.trajectory["d_d_loc_mps"][1]
-        c_d_dd = self.trajectory["d_dd_loc_mps2"][1]
+        steering_angle1 = self.ego_state.orientation - self.ego_state.slip_angle
+        # Plan B is to pass the slip angle and calculate it on the dynamivs but this is horrendous to do
 
+
+        vehicle_state = [self.ego_state.position[0], self.ego_state.position[1], self.ego_state.orientation, self.ego_state.velocity, self.ego_state.yaw_rate]
+        vehicle_velocity = [self.ego_state.velocity]
+        start_time = time.time()
+        
+        action, plan, all_trajs = mppi_planner.compute_action(
+            q=vehicle_state,
+            qdot=vehicle_velocity,
+        )
+        end_time = time.time()
+        print("The planning computational time is: ", end_time - start_time)
+
+        # Mapping tensor columns to dictionary keys
+        column_mapping = {
+            0: 'x_m',
+            1: 'y_m',
+            2: 'psi_rad',
+            3: 'v_mps',
+            4: 'delta_rad',
+        }
+        # Print _trajectory keys
+        # And types
+        
+        # Filling in values from the tensor into the dictionary arrays
+        for col_index, key in column_mapping.items():
+            self._trajectory[key][:] = plan[:, col_index].numpy()
+        
+        self._trajectory['acceleration_mps2'][:] = action[:, 0].numpy()
         # get the end velocities for the frenét paths
         current_v = self.ego_state.velocity
         max_acceleration = self.p.longitudinal.a_max
@@ -307,42 +379,11 @@ class FrenetPlanner(Planner):
         )
         min_v = max(0.01, current_v - max_acceleration * t_min)
 
-        with self.exec_timer.time_with_cm("simulation/get v list"):
-            v_list = get_v_list(
-                v_min=min_v,
-                v_max=max_v,
-                v_cur=current_v,
-                v_goal_min=self.v_goal_min,
-                v_goal_max=self.v_goal_max,
-                mode=self.frenet_parameters["v_list_generation_mode"],
-                n_samples=self.frenet_parameters["n_v_samples"],
-            )
-
-        with self.exec_timer.time_with_cm("simulation/calculate trajectories/total"):
-            d_list = self.frenet_parameters["d_list"]
-            t_list = self.frenet_parameters["t_list"]
-
-            # calculate all possible frenét trajectories
-            ft_list = calc_frenet_trajectories(
-                c_s=c_s,
-                c_s_d=c_s_d,
-                c_s_dd=c_s_dd,
-                c_d=c_d,
-                c_d_d=c_d_d,
-                c_d_dd=c_d_dd,
-                d_list=d_list,
-                t_list=t_list,
-                v_list=v_list,
-                dt=self.frenet_parameters["dt"],
-                csp=self.reference_spline,
-                v_thr=self.frenet_parameters["v_thr"],
-                exec_timer=self.exec_timer,
-            )
-
+      
+        t_list = self.frenet_parameters["t_list"]
         with self.exec_timer.time_with_cm("simulation/prediction"):
             # Overwrite later
             visible_area = None
-
             # get visible objects if the prediction is used
             if self.mode == "WaleNet" or self.mode == "risk":
                 # get_visible_objects may fail sometimes due to bad lanelets (e.g. DEU_A9-1_1_T-1 at [-73.94, -53.24])
@@ -367,6 +408,7 @@ class FrenetPlanner(Planner):
                             radius=self.sensor_radius,
                         )
                 else:
+                    
                     visible_obstacles = get_obstacles_in_radius(
                         scenario=self.scenario,
                         ego_id=self.ego_id,
@@ -395,6 +437,7 @@ class FrenetPlanner(Planner):
                         obstacle_id_list=stat_visible_obstacles,
                         pred_horizon=max(t_list) / self.scenario.dt,
                     )
+        
                 # if prediction fails use ground truth as prediction
                 except Exception as e:
                     print(
@@ -406,175 +449,57 @@ class FrenetPlanner(Planner):
                         obstacle_ids=visible_obstacles,
                         time_step=self.ego_state.time_step,
                     )
+              
                 # add orientation and dimensions of the obstacles to the prediction
                 predictions = get_orientation_velocity_and_shape_of_prediction(
                     predictions=predictions, scenario=self.scenario
                 )
-
+                
                 # Assign responsibility to predictions
                 predictions = assign_responsibility_by_action_space(
                     self.scenario, self.ego_state, predictions
                 )
+                
 
             else:
                 # TODO: Get GT prediction here for responsibility
                 predictions = None
-
         # calculate reachable sets
         if self.responsibility:
             with self.exec_timer.time_with_cm(
-                "simulation/calculate and check reachable sets"
+                    "simulation/calculate and check reachable sets"
             ):
                 self.reach_set.calc_reach_sets(self.ego_state, list(predictions.keys()))
-
-        with self.exec_timer.time_with_cm("simulation/sort trajectories/total"):
-            # sorted list (increasing costs)
-
-            ft_list_valid, ft_list_invalid, validity_dict = sort_frenet_trajectories(
-                ego_state=self.ego_state,
-                fp_list=ft_list,
-                global_path=self.global_path,
-                predictions=predictions,
-                mode=self.mode,
-                params=self.params_dict,
-                planning_problem=self.planning_problem,
-                scenario=self.scenario,
-                vehicle_params=self.p,
-                ego_id=self.ego_id,
-                dt=self.frenet_parameters["dt"],
-                sensor_radius=self.sensor_radius,
-                road_boundary=self.road_boundary,
-                collision_checker=self.collision_checker,
-                goal_area=self.goal_area,
-                exec_timer=self.exec_timer,
-                reach_set=(self.reach_set if self.responsibility else None)
-            )
-
-            with self.exec_timer.time_with_cm(
-                "simulation/sort trajectories/sort list by costs"
-            ):
-                # Sort the list of frenet trajectories (minimum cost first):
-                ft_list_valid.sort(key=lambda fp: fp.cost, reverse=False)
-
-            # show details of the frenet trajectories
-            # from planner.Frenet.utils.visualization import show_frenet_details
-            # show_frenet_details(vehicle_params=self.p, fp_list=ft_list)
 
             if self.reach_set is not None:
                 log_reach_set = self.reach_set.reach_sets[self.time_step]
             else:
                 log_reach_set = None
-
-        with self.exec_timer.time_with_cm("log trajectories"):
-            self.logger.log_data(
-                self.time_step,
-                self.time_step * self.frenet_parameters["dt"],
-                [d.__dict__ for d in ft_list_valid],
-                [d.__dict__ for d in ft_list_invalid],
-                predictions,
-                0,
-                log_reach_set,
-            )
-
+        #print("the current timestep is: ", self.ego_state.time_step)
         with self.exec_timer.time_with_cm("plot trajectories"):
-            if self.params_mode["figures"]["create_figures"] is True:
-                if self.mode == "risk":
-                    create_risk_files(
-                        scenario=self.scenario,
-                        time_step=self.ego_state.time_step,
-                        destination=os.path.join(os.path.dirname(__file__), "results"),
-                        risk_modes=self.params_mode,
-                        weights=self.params_weights,
-                        marked_vehicle=self.ego_id,
-                        planning_problem=self.planning_problem,
-                        traj=ft_list_valid,
-                        global_path=self.global_path_to_goal,
-                        global_path_after_goal=self.global_path_after_goal,
-                        driven_traj=self.driven_traj,
-                    )
-
-                else:
-                    warnings.warn(
-                        "Harm diagrams could not be created."
-                        "Please select mode risk.",
-                        UserWarning,
-                    )
-
-            if self.params_mode["risk_dashboard"] is True:
-                if self.mode == "risk":
-                    risk_dashboard(
-                        scenario=self.scenario,
-                        time_step=self.ego_state.time_step,
-                        destination=os.path.join(
-                            os.path.dirname(__file__), "results/risk_plots"
-                        ),
-                        risk_modes=self.params_mode,
-                        weights=self.params_weights,
-                        planning_problem=self.planning_problem,
-                        traj=(ft_list_valid + ft_list_invalid),
-                    )
-
-                else:
-                    warnings.warn(
-                        "Risk dashboard could not be created."
-                        "Please select mode risk.",
-                        UserWarning,
-                    )
-
-            # print some information about the frenet trajectories
-            if self.plot_frenet_trajectories:
-                matplotlib.use("TKAgg")
-                print(
-                    "Time step: {} | Velocity: {:.2f} km/h | Acceleration: {:.2f} m/s2".format(
-                        self.time_step, current_v * 3.6, c_s_dd
-                    )
+            # print some information about the optimal trajectory
+            matplotlib.use("TKAgg")
+            try:
+                all_trajs = all_trajs.cpu().numpy()
+                draw_optimal_trajectory(
+                    scenario=self.scenario,
+                    time_step=self.ego_state.time_step,
+                    marked_vehicle=self.ego_id,
+                    planning_problem=self.planning_problem,
+                    all_trajs=all_trajs,
+                    traj=self._trajectory,
+                    global_path=self.global_path_to_goal,
+                    global_path_after_goal=self.global_path_after_goal,
+                    driven_traj=self.driven_traj,
+                    animation_area=50.0,
+                    predictions=predictions,
+                    visible_area=visible_area,
                 )
-                for lvl, descr in VALIDITY_LEVELS.items():
-                    print(f"{descr}: {len(validity_dict[lvl])}", end=" | ")
-                print("")
+           
 
-                try:
-                    draw_frenet_trajectories(
-                        scenario=self.scenario,
-                        time_step=self.ego_state.time_step,
-                        marked_vehicle=self.ego_id,
-                        planning_problem=self.planning_problem,
-                        traj=None,
-                        all_traj=ft_list,
-                        global_path=self.global_path_to_goal,
-                        global_path_after_goal=self.global_path_after_goal,
-                        driven_traj=self.driven_traj,
-                        animation_area=50.0,
-                        predictions=predictions,
-                        visible_area=visible_area,
-                    )
-                except Exception as e:
-                    print(e)
-
-            # best trajectory
-            if len(ft_list_valid) > 0:
-                best_trajectory = ft_list_valid[0]
-            else:
-                best_trajectory = ft_list_invalid[0]
-                # raise NoLocalTrajectoryFoundError('Failed. No valid frenét path found')
-
-        self.exec_timer.stop_timer("simulation/total")
-
-        # store the best trajectory
-        self._trajectory = {
-            "s_loc_m": best_trajectory.s,
-            "d_loc_m": best_trajectory.d,
-            "d_d_loc_mps": best_trajectory.d_d,
-            "d_dd_loc_mps2": best_trajectory.d_dd,
-            "x_m": best_trajectory.x,
-            "y_m": best_trajectory.y,
-            "psi_rad": best_trajectory.yaw,
-            "kappa_radpm": best_trajectory.curv,
-            "v_mps": best_trajectory.s_d,
-            "ax_mps2": best_trajectory.s_dd,
-            "time_s": best_trajectory.t,
-        }
-
+            except Exception as e:
+                print(e)
+        
 
 if __name__ == "__main__":
     import argparse
@@ -582,7 +507,11 @@ if __name__ == "__main__":
     from planner.Frenet.plannertools.frenetcreator import FrenetCreator
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--scenario", default="recorded/hand-crafted/ZAM_Tjunction-1_486_T-1.xml")
+    path ='recorded/SUMO/DEU_Flensburg-32_1_T-1.xml'
+    path2 =  "recorded/hand-crafted/ZAM_Tjunction-1_486_T-1.xml"
+    path3 = "recorded/hand-crafted/ZAM_Tjunction-1_1_T-1.xml"
+    path4 = "recorded/hand-crafted/ZAM_Zip-1_57_T-1.xml"
+    parser.add_argument("--scenario", default=path2)
     parser.add_argument("--time", action="store_true")
     args = parser.parse_args()
 

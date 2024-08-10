@@ -17,7 +17,7 @@ from commonroad_helper_functions.sensor_model import (
 )
 from shapely.geometry import MultiPolygon, Point, Polygon
 
-from EthicalTrajectoryPlanning.planner.Frenet.utils.helper_functions import distance
+from PA_CommonRoad.planner.Frenet.utils.helper_functions import distance
 
 
 def calc_occluded_area_vs_velocity(
