@@ -56,7 +56,7 @@ class MPPIisaacPlanner(object):
     def update_objective(self, objective):
         self.objective = objective
 
-    def dynamics(self, old_state, u, t=None):
+    def dynamics2(self, old_state, u, t=None):
         # Note: normally mppi passes the state as the first parameter in a dynamics call, but using isaacgym the
         # state is already saved in the simulator itself, so we ignore it. Note: t is an unused step dependent
         # dynamics variable
@@ -92,6 +92,55 @@ class MPPIisaacPlanner(object):
             0.2 * ddelta
         ], dim=-1)
         state = torch.add(old_state, trans)
+        return state, u
+
+
+    def dynamics(self, old_state, u, t=None):
+        # Note: normally mppi passes the state as the first parameter in a dynamics call, but using isaacgym the
+        # state is already saved in the simulator itself, so we ignore it. Note: t is an unused step dependent
+        # dynamics variable
+        """
+        v = u[:, 0]
+        w = u[:, 1]
+        psi = old_state[:, 2]
+        trans = torch.stack([
+            0.2 * v * torch.cos(psi),
+            0.2 * v * torch.sin(psi),
+            0.2 * w,
+            0.2 * v
+        ], dim=-1)
+        state = torch.add(old_state, trans)
+        return state, u
+        """
+
+        t = 0.1
+
+        # vehicle bicycle model with dynamic steering
+        l_f = (2.9 / 2.595)
+        l_r = (4.95 / 2.595)
+        a = u[:, 0]     # acceleration
+        ddelta = u[:, 1]    # steering angle rate
+        psi = old_state[:, 2]
+        v = old_state[:, 3]
+        delta = old_state[:, 4]
+        ratio = l_r / (l_r + l_f)
+        beta = torch.arctan(ratio * torch.tan(delta))
+        trans = torch.stack([
+            t*v*torch.cos(psi + beta),
+            t*v*torch.sin(psi + beta),
+            t*(v/l_r) * torch.sin(beta),
+            t*a,
+            t*ddelta
+        ], dim=-1)
+        state = torch.add(old_state, trans)
+
+
+        # Set velocity limits
+        state[:, 3] = torch.clamp(state[:, 3], -13.6, 50.8)
+        # Set steering angle limits
+        state[:, 4] = torch.clamp(state[:, 4], -1.066, 1.066)
+
+
         return state, u
 
 

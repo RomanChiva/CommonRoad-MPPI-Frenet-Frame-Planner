@@ -1,0 +1,11 @@
+defaults:
+  - mppi: bmw
+
+goal: [-47.67, -3.645]
+v_ref: 2.0
+render: true
+n_steps: 1000
+nx: 5
+
+actors: ['jackal']
+initial_actor_positions: [[0.0, 0.0, 0.05]]

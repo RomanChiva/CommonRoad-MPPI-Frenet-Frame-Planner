@@ -294,7 +294,7 @@ class FrenetPlanner_MPPI(Planner):
     def _load_config(self):
         # Load Hydra configurations
         with initialize(config_path="../conf"):
-            config = compose(config_name="config_jackal_robot")
+            config = compose(config_name="config_bmw")
         return config
 
     # Create the Planner (Wapper around the core MPPI Class to ease interactions, like an interface)
@@ -319,6 +319,10 @@ class FrenetPlanner_MPPI(Planner):
 
         self.exec_timer.start_timer("simulation/total")
     
+
+        ##############################################################
+        # get the current state of the ego vehicle and the time step
+        ################################################################
         with self.exec_timer.time_with_cm("simulation/update driven trajectory"):
             # update the driven trajectory
             # add the current state to the driven path
@@ -333,53 +337,10 @@ class FrenetPlanner_MPPI(Planner):
                 )
                 
                 self.driven_traj.append(current_state)
+        ################################################################
+        # Get the predictions
+        ################################################################
 
-        
-        mppi_planner = self._set_planner(self.cfg)
-        # Steering Angle needs to be recovered two methods
-
-        steering_angle1 = self.ego_state.orientation - self.ego_state.slip_angle
-        # Plan B is to pass the slip angle and calculate it on the dynamivs but this is horrendous to do
-
-
-        vehicle_state = [self.ego_state.position[0], self.ego_state.position[1], self.ego_state.orientation, self.ego_state.velocity, self.ego_state.yaw_rate]
-        vehicle_velocity = [self.ego_state.velocity]
-        start_time = time.time()
-        
-        action, plan, all_trajs = mppi_planner.compute_action(
-            q=vehicle_state,
-            qdot=vehicle_velocity,
-        )
-        end_time = time.time()
-        print("The planning computational time is: ", end_time - start_time)
-
-        # Mapping tensor columns to dictionary keys
-        column_mapping = {
-            0: 'x_m',
-            1: 'y_m',
-            2: 'psi_rad',
-            3: 'v_mps',
-            4: 'delta_rad',
-        }
-        # Print _trajectory keys
-        # And types
-        
-        # Filling in values from the tensor into the dictionary arrays
-        for col_index, key in column_mapping.items():
-            self._trajectory[key][:] = plan[:, col_index].numpy()
-        
-        self._trajectory['acceleration_mps2'][:] = action[:, 0].numpy()
-        # get the end velocities for the frenét paths
-        current_v = self.ego_state.velocity
-        max_acceleration = self.p.longitudinal.a_max
-        t_min = min(self.frenet_parameters["t_list"])
-        t_max = max(self.frenet_parameters["t_list"])
-        max_v = min(
-            current_v + (max_acceleration / 2.0) * t_max, self.p.longitudinal.v_max
-        )
-        min_v = max(0.01, current_v - max_acceleration * t_min)
-
-      
         t_list = self.frenet_parameters["t_list"]
         with self.exec_timer.time_with_cm("simulation/prediction"):
             # Overwrite later
@@ -475,7 +436,65 @@ class FrenetPlanner_MPPI(Planner):
                 log_reach_set = self.reach_set.reach_sets[self.time_step]
             else:
                 log_reach_set = None
-        #print("the current timestep is: ", self.ego_state.time_step)
+        
+        #########################################################################
+        # Generate MPPI TRAJECTORIES
+
+
+
+
+
+        mppi_planner = self._set_planner(self.cfg)
+        
+        # Get all the encessary attributes from the ego state
+
+        try:
+            steering_angle = self.ego_state.steering_angle
+            
+        except:
+            steering_angle = 0.0
+        
+
+ 
+        vehicle_state = [self.ego_state.position[0], self.ego_state.position[1], self.ego_state.orientation, self.ego_state.velocity, steering_angle]
+        vehicle_velocity = [self.ego_state.velocity]
+        start_time = time.time()
+        
+        action, plan, all_trajs = mppi_planner.compute_action(
+            q=vehicle_state,
+            qdot=vehicle_velocity,
+        )
+        end_time = time.time()
+        print("The planning computational time is: ", end_time - start_time)
+
+        # Mapping tensor columns to dictionary keys
+        column_mapping = {
+            0: 'x_m',
+            1: 'y_m',
+            2: 'psi_rad',
+            3: 'v_mps',
+            4: 'delta_rad',
+        }
+        # Print _trajectory keys
+        # And types
+        
+        # Filling in values from the tensor into the dictionary arrays
+        for col_index, key in column_mapping.items():
+            self._trajectory[key][:] = plan[:, col_index].numpy()
+        
+        self._trajectory['acceleration_mps2'][:] = action[:, 0].numpy()
+        # get the end velocities for the frenét paths
+        current_v = self.ego_state.velocity
+        max_acceleration = self.p.longitudinal.a_max
+        t_min = min(self.frenet_parameters["t_list"])
+        t_max = max(self.frenet_parameters["t_list"])
+        max_v = min(
+            current_v + (max_acceleration / 2.0) * t_max, self.p.longitudinal.v_max
+        )
+        min_v = max(0.01, current_v - max_acceleration * t_min)
+
+      
+        
         with self.exec_timer.time_with_cm("plot trajectories"):
             # print some information about the optimal trajectory
             matplotlib.use("TKAgg")
