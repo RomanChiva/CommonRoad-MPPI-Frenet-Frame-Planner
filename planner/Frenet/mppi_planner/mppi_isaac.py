@@ -144,11 +144,41 @@ class MPPIisaacPlanner(object):
         return state, u
 
 
-    def running_cost(self, state, u):
+    def running_cost(self, state):
         # Note: again normally mppi passes the state as a parameter in the running cost call, but using isaacgym the
         # state is already saved and accessible in the simulator itself, so we ignore it and pass a handle to the
         # simulator.
-        return self.objective.compute_cost(state, u)
+        return self.objective.compute_cost(state)
+    
+
+    def get_samples(self, q, qdot, obst=None, obst_tensor=None):
+
+        self.state_place_holder = torch.tensor(q * self.cfg.mppi.num_samples).view(self.cfg.mppi.num_samples, -1)
+        actions, states = self.mppi.get_trajectories(self.state_place_holder)
+        actions = actions.cpu()
+        states = states.cpu()
+
+        return actions, states
+
+
+    def compute_traj(self, drop):
+
+        actions, states = self.mppi.evaluate_trajectories(drop)
+
+        actions = actions.cpu()
+        # loop over the actions and forward propagate the dynamics to get the trajectory
+        old_state = self.state_place_holder[0, :].unsqueeze(0)
+        traj = []
+        for i in range(actions.size(0)):
+            element = actions[i, :]
+            new_state, _ = self.dynamics(old_state, element.unsqueeze(0))
+            traj.append(old_state)
+            old_state = new_state
+
+        traj = torch.cat(traj, dim=0)
+
+        return actions, traj, states[:, :, 0:2]
+
 
     def compute_action(self, q, qdot, obst=None, obst_tensor=None):
     

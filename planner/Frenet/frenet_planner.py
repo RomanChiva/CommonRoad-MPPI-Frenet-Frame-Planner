@@ -298,7 +298,7 @@ class FrenetPlanner_MPPI(Planner):
         return config
 
     # Create the Planner (Wapper around the core MPPI Class to ease interactions, like an interface)
-    def _set_planner(self, cfg):
+    def _set_planner(self, cfg, prediction):
         """
         Initializes the mppi planner for jackal robot.
 
@@ -307,7 +307,8 @@ class FrenetPlanner_MPPI(Planner):
         goal_position: np.ndarray
             The goal to the motion planning problem.
         """
-        objective = Objective(cfg, cfg.mppi.device, self.reference_spline, self.global_path)
+
+        objective = Objective(cfg, cfg.mppi.device, self.reference_spline, self.global_path, prediction)
         mppi_planner = MPPIisaacPlanner(cfg, objective)
 
         return mppi_planner
@@ -439,15 +440,11 @@ class FrenetPlanner_MPPI(Planner):
         
         #########################################################################
         # Generate MPPI TRAJECTORIES
+        ########################################################################
 
-
-
-
-
-        mppi_planner = self._set_planner(self.cfg)
+        mppi_planner = self._set_planner(self.cfg, predictions)
         
-        # Get all the encessary attributes from the ego state
-
+        # Get all the encessary attributes from the ego state (Steering angle only becomes available later on (We create it ourselves))
         try:
             steering_angle = self.ego_state.steering_angle
             
@@ -458,14 +455,48 @@ class FrenetPlanner_MPPI(Planner):
  
         vehicle_state = [self.ego_state.position[0], self.ego_state.position[1], self.ego_state.orientation, self.ego_state.velocity, steering_angle]
         vehicle_velocity = [self.ego_state.velocity]
-        start_time = time.time()
+        print('Velocity Ego:', vehicle_velocity)
+
+        # Generate trajectories
+        actions, states = mppi_planner.get_samples(q=vehicle_state, qdot=vehicle_velocity)
+       
+        #######################################################################
+        # Convert them to Frenet Frame
+        #######################################################################
+
+        # Convert the trajectories to frenet frame
+
+
         
-        action, plan, all_trajs = mppi_planner.compute_action(
-            q=vehicle_state,
-            qdot=vehicle_velocity,
-        )
-        end_time = time.time()
-        print("The planning computational time is: ", end_time - start_time)
+
+
+
+        #######################################################################
+        # Check validity of the trajectories, make sure no constraints are broken: 
+
+        # Check for: 
+            # 1. Physically Possible with car dynamics
+            # 2. Collision Free
+            # 3. In the road boundary
+            # 4. Check RISK constraints are satisfied
+            # It all good the trajectory is valid
+        ###########################################################################
+
+
+
+        # FIND A LIST OF INDICES TO BE REMOVED
+        drop = [1,2,3,4,5]
+
+
+        #######################################################################
+        # Pass the remaining valid trajectories to the MPPI Planner to calculate cost and find an optimal trajectory
+        ###########################################################################
+
+
+        action, plan, all_trajs = mppi_planner.compute_traj(drop)
+        
+        
+
 
         # Mapping tensor columns to dictionary keys
         column_mapping = {
@@ -494,6 +525,9 @@ class FrenetPlanner_MPPI(Planner):
         min_v = max(0.01, current_v - max_acceleration * t_min)
 
       
+      #######################################################################
+      # RENDER THE OPTIMAL TRAJECTORY
+      ###########################################################################
         
         with self.exec_timer.time_with_cm("plot trajectories"):
             # print some information about the optimal trajectory
@@ -519,6 +553,13 @@ class FrenetPlanner_MPPI(Planner):
             except Exception as e:
                 print(e)
         
+
+    #######################################################################
+    # DONE!
+    ###########################################################################
+
+
+
 
 if __name__ == "__main__":
     import argparse

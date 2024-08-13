@@ -7,11 +7,12 @@ import time
 
 
 class Objective(object):
-    def __init__(self, cfg, device, reference_spline, global_path):
+    def __init__(self, cfg, device, reference_spline, global_path, prediction):
         self.nav_goal = torch.tensor(cfg.goal, device=device)
         self.v_ref = torch.tensor(cfg.v_ref, device=device)
         self.reference_spline = reference_spline
         self.global_path = global_path
+        self.prediction = prediction
 
     # Function to find the closest point on the global path to the given (x, y)
     def find_closest_s(self, x, y):
@@ -289,45 +290,54 @@ class Objective(object):
 
         return closest_point_indices, n_closest_2nd_ref_point
 
-    def compute_cost(self, state, u):
-        pos = state[:, 0:2]
-        velocity_cost = torch.square(state[:, 3] - self.v_ref)
+    def compute_cost(self, states):
 
-        pos_x = state[:, 0]
-        pos_y = state[:, 1]
-        pos_x_cpu = pos_x.cpu().numpy()
-        pos_y_cpu = pos_y.cpu().numpy()
+        costs = []
+        for i in range (states.shape[1]):
+            state = states[:, i, :]
 
-        with open('trajectory.pkl', 'wb') as file:
-            pickle.dump(pos_x_cpu, file)
-            pickle.dump(pos_y_cpu, file)
+            pos = state[:, 0:2]
+            velocity_cost = torch.square(state[:, 3] - self.v_ref)
 
-        external_points = np.array(list(zip(pos_x_cpu, pos_y_cpu)))
-        reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
+            pos_x = state[:, 0]
+            pos_y = state[:, 1]
+            pos_x_cpu = pos_x.cpu().numpy()
+            pos_y_cpu = pos_y.cpu().numpy()
 
-        # closest_point, closest_point_index, _, _ = find_closest_points_vectorized(external_points, reference_path)
-        start_time = time.time()
-        fS = self.frenet_s(external_points, reference_path)
-        d_values_traj = np.abs(
-            [np.linalg.norm([x - self.reference_spline.sx(s), y - self.reference_spline.sy(s)]) for s, x, y
-             in
-             zip(fS, pos_x_cpu, pos_y_cpu)])
-        end_time = time.time()
-        '''
-        reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
-        reference_path = torch.tensor(reference_path, device='cuda:0')
-        fS = self.frenet_s_tensor(pos, reference_path)
-        fS = fS.cpu().numpy()
 
-        d_values_traj = [np.linalg.norm([x - self.reference_spline.sx(s), y - self.reference_spline.sy(s)]) for s, x, y
-                         in
-                         zip(fS, pos_x_cpu, pos_y_cpu)]
+            external_points = np.array(list(zip(pos_x_cpu, pos_y_cpu)))
+            reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
 
-        '''
+            # closest_point, closest_point_index, _, _ = find_closest_points_vectorized(external_points, reference_path)
 
-        #print("computational time for reference tracking: ", end_time - start_time)
+            fS = self.frenet_s(external_points, reference_path)
+            d_values_traj = np.abs(
+                [np.linalg.norm([x - self.reference_spline.sx(s), y - self.reference_spline.sy(s)]) for s, x, y
+                in
+                zip(fS, pos_x_cpu, pos_y_cpu)])
+    
+            '''
+            reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
+            reference_path = torch.tensor(reference_path, device='cuda:0')
+            fS = self.frenet_s_tensor(pos, reference_path)
+            fS = fS.cpu().numpy()
 
-        return torch.tensor(d_values_traj)
+            d_values_traj = [np.linalg.norm([x - self.reference_spline.sx(s), y - self.reference_spline.sy(s)]) for s, x, y
+                            in
+                            zip(fS, pos_x_cpu, pos_y_cpu)]
+
+            '''
+            progress_reward = -fS
+            progress_reward = torch.tensor(progress_reward)
+
+            total_cost = torch.tensor(d_values_traj) + 0.1*progress_reward
+            costs.append(total_cost)
+            
+
+        costs = torch.stack(costs, dim=0)
+
+        return costs
+
         '''
 
         return torch.clamp(
