@@ -1,17 +1,19 @@
 defaults:
   - base_mppi
 
-mppi_mode: "halton-spline"  # halton-spline, simple
-sampling_method: "halton"   # halton, random
+mppi_mode: "simple"  # halton-spline, simple
+sampling_method: "random"   # halton, random
 num_samples: 400
-horizon: 20                 # At least 12 for Halton Sampling
+horizon: 35                 # At least 12 for Halton Sampling
 device: "cpu"
-lambda_: 0.05
-u_min: [-5, -0.4]
+lambda_: 1
+u_min: [-11.5, -0.4]
 u_max: [11.5, 0.4]
-noise_sigma: [[3.0, 0.0], [0.0, 0.1]]
+noise_sigma: [[8.0, 0.0], [0.0, 0.2]]
 update_cov: False
 rollout_var_discount: 0.95
 sample_null_action: True
 noise_abs_cost: False
 filter_u: True
+
+

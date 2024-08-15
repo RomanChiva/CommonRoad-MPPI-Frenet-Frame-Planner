@@ -10,7 +10,7 @@ import scipy.interpolate as si
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from PA_CommonRoad.planner.Frenet.mppi_utils.mppi_utils import generate_gaussian_halton_samples, scale_ctrl, cost_to_go
-
+import matplotlib.pyplot as plt
 
 def _ensure_non_zero(cost, beta, factor):
     return torch.exp(-factor * (cost - beta))
@@ -321,7 +321,31 @@ class MPPIPlanner(ABC):
 
      
         cost_total = self.compute_costs_filtered()
-        # Compute how many values above 0.0001
+        self.COST = cost_total
+
+        # # Plot trajectories and color code with cost
+        # fig, ax = plt.subplots()
+        # ax.set_title('Trajectories')
+        # ax.set_xlabel('x')
+        # ax.set_ylabel('y')
+        # ax.set_aspect('equal')
+
+        # min_cost = torch.min(cost_total)
+        # max_cost = torch.max(cost_total)
+        # print('Min Cost: ', min_cost)
+        # print('Max Cost: ', max_cost)
+        # # User these to construct a color map
+        # norm = plt.Normalize(min_cost, max_cost)
+        # cmap = plt.get_cmap('viridis')
+        
+        # for i in range(self.states.shape[0]):
+        #     ax.plot(self.states[i,:,0].cpu().numpy(), self.states[i,:,1].cpu().numpy(), color=cmap(norm(cost_total[i].item())))
+        
+        # sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        # sm.set_array([])
+        # fig.colorbar(sm, ax=ax)
+        # plt.show()
+
        
         beta = torch.min(cost_total)
 
@@ -338,6 +362,11 @@ class MPPIPlanner(ABC):
         eta = torch.sum(self.cost_total_non_zero)
         
         self.omega = (1. / eta) * self.cost_total_non_zero
+
+        # Print how many values are abobe 0.01
+
+        print(torch.sum(self.omega > 0.005), 'Trajectories used')
+
         self.U += torch.sum(self.omega.view(-1, 1, 1) * self.noise, dim=0)
 
         action = self.U
@@ -759,6 +788,7 @@ class MPPIPlanner(ABC):
 
         # Bounded noise after bounding (some got cut off, so we don't penalize that in action cost)
         self.noise = self.actions - self.U
+
 
 
 

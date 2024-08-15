@@ -115,6 +115,7 @@ class Objective(object):
     def frenet_s(self, external_points, reference_path):
         _, _, closest_point_indices, second_closest_point_indices = self.find_closest_points_vectorized(external_points,
                                                                                                         reference_path)
+        
         # Adjust indices to get nPrevRefPoint and nNextRefPoint
         nPrevRefPoint = closest_point_indices
         nNextRefPoint = second_closest_point_indices
@@ -290,9 +291,11 @@ class Objective(object):
 
         return closest_point_indices, n_closest_2nd_ref_point
 
-    def compute_cost(self, states):
+    def convert_to_frenet(self,states):
 
-        costs = []
+        s_list = []
+        d_list = []
+
         for i in range (states.shape[1]):
             state = states[:, i, :]
 
@@ -304,18 +307,63 @@ class Objective(object):
             pos_x_cpu = pos_x.cpu().numpy()
             pos_y_cpu = pos_y.cpu().numpy()
 
-
+           
             external_points = np.array(list(zip(pos_x_cpu, pos_y_cpu)))
             reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
 
             # closest_point, closest_point_index, _, _ = find_closest_points_vectorized(external_points, reference_path)
 
             fS = self.frenet_s(external_points, reference_path)
+
             d_values_traj = np.abs(
                 [np.linalg.norm([x - self.reference_spline.sx(s), y - self.reference_spline.sy(s)]) for s, x, y
                 in
                 zip(fS, pos_x_cpu, pos_y_cpu)])
-    
+        
+            s_list.append(fS)
+            d_list.append(d_values_traj)
+        
+        # Concat list of arrays to numpy array
+        s_list = np.stack(s_list, axis=1)
+        d_list = np.stack(d_list, axis=1)
+
+        return s_list, d_list
+
+        
+
+
+
+    def compute_cost(self, states):
+ 
+        cost_d = []
+        cost_s = []
+        fs_prev = None
+        for i in range (states.shape[1]):
+            state = states[:, i, :]
+            
+            pos = state[:, 0:2]
+            velocity_cost = torch.square(state[:, 3] - self.v_ref)
+
+            pos_x = state[:, 0]
+            pos_y = state[:, 1]
+            pos_x_cpu = pos_x.cpu().numpy()
+            pos_y_cpu = pos_y.cpu().numpy()
+
+           
+            external_points = np.array(list(zip(pos_x_cpu, pos_y_cpu)))
+            reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
+
+            # closest_point, closest_point_index, _, _ = find_closest_points_vectorized(external_points, reference_path)
+            fS = self.frenet_s(external_points, reference_path)
+
+            if i == 0:
+                fs_prev = fS
+            
+            d_values_traj = np.abs(
+                [np.linalg.norm([x - self.reference_spline.sx(s), y - self.reference_spline.sy(s)]) for s, x, y
+                in
+                zip(fS, pos_x_cpu, pos_y_cpu)])
+            
             '''
             reference_path = np.array(list(zip(self.global_path[:, 0], self.global_path[:, 1])))
             reference_path = torch.tensor(reference_path, device='cuda:0')
@@ -327,14 +375,28 @@ class Objective(object):
                             zip(fS, pos_x_cpu, pos_y_cpu)]
 
             '''
-            progress_reward = -fS
-            progress_reward = torch.tensor(progress_reward)
+            progress_reward = fs_prev-fS
 
-            total_cost = torch.tensor(d_values_traj) + 0.1*progress_reward
-            costs.append(total_cost)
+            cost_s.append(torch.tensor(progress_reward))
+            cost_d.append(torch.tensor(d_values_traj))
+            fs_prev = fS
             
+        costs_s = torch.stack(cost_s, dim=0)
+        costs_d = torch.stack(cost_d, dim=0)
 
-        costs = torch.stack(costs, dim=0)
+        # Sum them along time direction
+        costs_s_av = torch.sum(costs_s, dim=0)
+        costs_d_av = torch.sum(costs_d, dim=0)
+        print(costs_s_av.shape)
+        # Print average
+        print("Average progress reward: ", torch.mean(costs_s_av))
+        print("Average distance reward: ", torch.mean(costs_d_av))
+
+        # Add them and include weights
+        w_s = 0.5
+        w_d = 1
+        costs = w_s*(costs_s)**2 + w_d*costs_d
+        
 
         return costs
 

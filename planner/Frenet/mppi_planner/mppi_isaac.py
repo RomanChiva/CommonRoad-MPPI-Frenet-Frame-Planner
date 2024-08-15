@@ -150,6 +150,12 @@ class MPPIisaacPlanner(object):
         # simulator.
         return self.objective.compute_cost(state)
     
+    def convert_to_frenet(self, state):
+
+        fs, fd = self.objective.convert_to_frenet(state)
+
+        return fs, fd
+    
 
     def get_samples(self, q, qdot, obst=None, obst_tensor=None):
 
@@ -157,7 +163,6 @@ class MPPIisaacPlanner(object):
         actions, states = self.mppi.get_trajectories(self.state_place_holder)
         actions = actions.cpu()
         states = states.cpu()
-
         return actions, states
 
 
@@ -177,7 +182,7 @@ class MPPIisaacPlanner(object):
 
         traj = torch.cat(traj, dim=0)
 
-        return actions, traj, states[:, :, 0:2]
+        return actions, traj, states[:, :, 0:2], self.mppi.COST
 
 
     def compute_action(self, q, qdot, obst=None, obst_tensor=None):
@@ -185,6 +190,7 @@ class MPPIisaacPlanner(object):
         self.state_place_holder = torch.tensor(q * self.cfg.mppi.num_samples).view(self.cfg.mppi.num_samples, -1)
         actions, states = self.mppi.command(self.state_place_holder, obst)
         actions = actions.cpu()
+       
         # loop over the actions and forward propagate the dynamics to get the trajectory
         old_state = self.state_place_holder[0, :].unsqueeze(0)
         traj = []

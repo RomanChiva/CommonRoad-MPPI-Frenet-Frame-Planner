@@ -356,7 +356,7 @@ def animate_scenario(
                 ax4.scatter(j, yaw[j])
 
     plt.close()
-    print('IS THIS HAPPENING AT ALL?')
+   
     # create the figure
     fig = plt.figure(constrained_layout=False, figsize=(22, 15))
     # set the font size
@@ -515,6 +515,135 @@ def draw_frenet_trajectories(
     # i += 1
     plt.pause(0.0001)
 
+
+def draw_MPPI_valid(
+    scenario,
+    time_step: int,
+    marked_vehicle: [int] = None,
+    planning_problem=None,
+    traj=None,
+    VALID_traj=None,
+    INVALID_traj=None,
+    predictions: dict = None,
+    visible_area=None,
+    animation_area: float = 40.0,
+    global_path: np.ndarray = None,
+    global_path_after_goal: np.ndarray = None,
+    driven_traj=None,
+    ax=None,
+    picker=False,
+    show_label=False,
+    live=True,
+):
+    """
+    Plot all frenét trajectories.
+
+    Args:
+        scenario (Scenario): Considered Scenario.
+        time_step (int): Current time step.
+        marked_vehicle ([int]): IDs of the marked vehicles. Defaults to None.
+        planning_problem (PlanningProblem): Considered planning problem. Defaults to None.
+        traj (FrenetTrajectory): The best trajectory of all frenét trajectories. Defaults to None.
+        all_traj ([FrenetTrajectory]): All frenét trajectories. Defaults to None.
+        fut_pos_list (np.ndarray): Future positions of the vehicles. Defaults to None.
+        visible_area (shapely.Polygon): Polygon of the visible area. Defaults to None.
+        animation_area (float): Area that should be shown. Defaults to 40.0.
+        global_path (np.ndarray): Global path for the planning problem. Defaults to None.
+        global_path_after_goal (np.ndarray): Global path for the planning problem after reaching the goal. Defaults to None.
+        driven_traj ([States]): Already driven trajectory of the ego vehicle. Defaults to None.
+        save_fig (bool): True if the figure should be saved. Defaults to False.
+    """
+    if live:
+        ax = draw_scenario(
+            scenario,
+            time_step,
+            marked_vehicle,
+            planning_problem,
+            traj,
+            visible_area,
+            animation_area,
+            global_path,
+            global_path_after_goal,
+            driven_traj,
+            ax,
+            picker,
+            show_label,
+        )
+
+     # x and y axis description
+    ax.set_xlabel("x in m")
+    ax.set_ylabel("y in m")
+
+    # align ego position to the center
+    ax.set_xlim(
+        VALID_traj[0].x[0] - animation_area, VALID_traj[0].x[0] + animation_area
+    )
+    ax.set_ylim(
+        VALID_traj[0].y[0] - animation_area, VALID_traj[0].y[0] + animation_area
+    )
+
+    # Make a list of reasons why it is invalid
+    # reasons = []
+    # for traj in INVALID_traj:
+
+    #     # If not in reasons append
+    #     if traj.reason_invalid not in reasons:
+    #         reasons.append(traj.reason_invalid)
+
+
+    # # Associate each with a color
+    # color_dict = {}
+    # for i, reason in enumerate(reasons):
+    #     color_dict[reason] = cm.tab20(i)
+
+
+
+    # PLOT INVALID TRAJECTORIES IN BLACK
+    # for traj in INVALID_traj:
+
+    #     # Find color of traj
+    #     # color = color_dict[traj.reason_invalid]
+
+    #     ax.plot(traj.x, traj.y, alpha=0.5, color = 'black', zorder=20, picker=picker)
+
+    # mormalize the costs of the trajectories to map colors to them
+    norm = matplotlib.colors.Normalize(
+    vmin=min([VALID_traj[i].cost for i in range(len(VALID_traj))]),
+    vmax=max([VALID_traj[i].cost for i in range(len(VALID_traj))]),
+    clip=True,)
+
+    # Create a color mapper to map costs to colors
+    mapper = cm.ScalarMappable(norm=norm, cmap=green_to_red_colormap())
+    
+    # Draw all possible trajectories with their costs as colors
+    for traj in VALID_traj:
+        # Use mapper to assign color to each trajectory
+        color = mapper.to_rgba(traj.cost)
+        ax.plot(traj.x, traj.y, alpha=0.5, color = color, zorder=20, picker=picker)
+        
+    
+
+    # draw planned trajectory
+    if traj is not None:
+        ax.plot(
+            traj.x,
+            traj.y,
+            alpha=1.0,
+            color="green",
+            zorder=25,
+            lw=3.0,
+            label="Best trajectory",
+            picker=picker,
+        )
+
+    # draw predictions
+    if predictions is not None:
+        draw_uncertain_predictions(predictions, ax)
+
+    # show the figure until the next one ins ready
+    # plt.savefig(str(i).zfill(4) + ".png")
+    # i += 1
+    plt.pause(0.0001)
 
 
 

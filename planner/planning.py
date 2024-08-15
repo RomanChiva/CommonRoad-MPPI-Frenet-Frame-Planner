@@ -24,7 +24,9 @@ from planner.utils.timers import ExecTimer
 from planner.Frenet.utils.helper_functions import get_max_curvature
 from planner.Frenet.utils.calc_trajectory_cost import distance
 from commonroad_helper_functions.utils.cubicspline import CubicSpline2D
+import commonroad_helper_functions
 
+print(commonroad_helper_functions.__file__)
 
 class PlanningAgent(Agent):
     def __init__(
@@ -237,7 +239,7 @@ class Planner(object):
         self.__ego_state = planning_problem.initial_state
 
         # minimum trajectory length
-        self.__min_trajectory_length = 20
+        self.__min_trajectory_length = 35
 
         # prediction
         self.__prediction = None

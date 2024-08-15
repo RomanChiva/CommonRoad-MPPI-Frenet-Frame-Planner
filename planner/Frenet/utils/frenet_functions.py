@@ -47,8 +47,7 @@ class FrenetTrajectory:
         y: [float] = None,
         yaw: [float] = None,
         v: [float] = None,
-        curv: [float] = None,
-    ):
+        curv: [float] = None,    ):
         """
         Initialize a frenét trajectory.
 
@@ -100,6 +99,9 @@ class FrenetTrajectory:
         # Risk
         self.ego_risk_dict = []
         self.obst_risk_dict = []
+
+        # Traj Index
+        self.traj_index = None
 
 
 def check_curvature_of_global_path(
@@ -569,28 +571,28 @@ def sort_frenet_trajectories(
     ]
     ft_list_invalid = [item for sublist in ft_list_invalid for item in sublist]
 
-    for fp in ft_list_highest_validity:
-        (
-            fp.cost,
-            fp.cost_dict,
-        ) = calc_trajectory_costs(
-            traj=fp,
-            global_path=global_path,
-            ego_state=ego_state,
-            validity_level=validity_level,
-            planning_problem=planning_problem,
-            params=params,
-            scenario=scenario,
-            ego_id=ego_id,
-            dt=dt,
-            predictions=cost_predictions,
-            sensor_radius=sensor_radius,
-            vehicle_params=vehicle_params,
-            goal_area=goal_area,
-            exec_timer=timer,
-            mode=mode,
-            reach_set=reach_set
-        )
+    # for fp in ft_list_highest_validity:
+    #     (
+    #         fp.cost,
+    #         fp.cost_dict,
+    #     ) = calc_trajectory_costs(
+    #         traj=fp,
+    #         global_path=global_path,
+    #         ego_state=ego_state,
+    #         validity_level=validity_level,
+    #         planning_problem=planning_problem,
+    #         params=params,
+    #         scenario=scenario,
+    #         ego_id=ego_id,
+    #         dt=dt,
+    #         predictions=cost_predictions,
+    #         sensor_radius=sensor_radius,
+    #         vehicle_params=vehicle_params,
+    #         goal_area=goal_area,
+    #         exec_timer=timer,
+    #         mode=mode,
+    #         reach_set=reach_set
+    #     )
 
     return ft_list_highest_validity, ft_list_invalid, validity_dict
 

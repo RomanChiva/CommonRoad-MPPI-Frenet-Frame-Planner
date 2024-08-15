@@ -39,7 +39,7 @@ sys.path.append(mopl_path)
 
 from PA_CommonRoad.planner.planning import Planner
 from PA_CommonRoad.planner.utils.timeout import Timeout
-from PA_CommonRoad.planner.Frenet.utils.visualization import draw_frenet_trajectories, draw_optimal_trajectory
+from PA_CommonRoad.planner.Frenet.utils.visualization import draw_frenet_trajectories, draw_optimal_trajectory, draw_MPPI_valid
 from PA_CommonRoad.planner.Frenet.utils.validity_checks import (
     VALIDITY_LEVELS,
 )
@@ -87,9 +87,9 @@ from scipy.optimize import minimize
 from scipy.optimize import minimize_scalar
 import time
 
-
-
-
+from PA_CommonRoad.planner.Frenet.utils.cart2frenet import C2F
+from PA_CommonRoad.planner.Frenet.utils.frenet_functions import FrenetTrajectory
+import matplotlib.pyplot as plt
 
 
 class FrenetPlanner_MPPI(Planner):
@@ -308,6 +308,7 @@ class FrenetPlanner_MPPI(Planner):
             The goal to the motion planning problem.
         """
 
+
         objective = Objective(cfg, cfg.mppi.device, self.reference_spline, self.global_path, prediction)
         mppi_planner = MPPIisaacPlanner(cfg, objective)
 
@@ -444,6 +445,8 @@ class FrenetPlanner_MPPI(Planner):
 
         mppi_planner = self._set_planner(self.cfg, predictions)
         
+
+
         # Get all the encessary attributes from the ego state (Steering angle only becomes available later on (We create it ourselves))
         try:
             steering_angle = self.ego_state.steering_angle
@@ -460,16 +463,23 @@ class FrenetPlanner_MPPI(Planner):
         # Generate trajectories
         actions, states = mppi_planner.get_samples(q=vehicle_state, qdot=vehicle_velocity)
        
+
+       # Visualize MPPI Trajectories plot X, Y 
+        # Plot in a new figure an stop execution
+        
         #######################################################################
         # Convert them to Frenet Frame
         #######################################################################
 
-        # Convert the trajectories to frenet frame
+        # Convert the trajectories to frenet frame and fit them to the trajectory list format
+        start_time = time.time()
+        states_numpy = states.cpu().numpy()
+        s, d = mppi_planner.convert_to_frenet(states)
 
-
+        # Get the frenet trajectories
+        ft_list_1 = C2F(s,d, states_numpy, self.frenet_parameters["dt"], self.p.w/0.1)
+        end_time = time.time()
         
-
-
 
         #######################################################################
         # Check validity of the trajectories, make sure no constraints are broken: 
@@ -481,21 +491,65 @@ class FrenetPlanner_MPPI(Planner):
             # 4. Check RISK constraints are satisfied
             # It all good the trajectory is valid
         ###########################################################################
+       
+        # Sort the trajectories
+        start_time = time.time()
+        with self.exec_timer.time_with_cm("simulation/sort trajectories/total"):
+            # sorted list (increasing costs)
+            ft_list_valid, ft_list_invalid, validity_dict = sort_frenet_trajectories(
+                ego_state=self.ego_state,
+                fp_list=ft_list_1,
+                global_path=self.global_path,
+                predictions=predictions,
+                mode=self.mode,
+                params=self.params_dict,
+                planning_problem=self.planning_problem,
+                scenario=self.scenario,
+                vehicle_params=self.p,
+                ego_id=self.ego_id,
+                dt=self.frenet_parameters["dt"],
+                sensor_radius=self.sensor_radius,
+                road_boundary=self.road_boundary,
+                collision_checker=self.collision_checker,
+                goal_area=self.goal_area,
+                exec_timer=self.exec_timer,
+                reach_set=(self.reach_set if self.responsibility else None)
+            )
+        end_time = time.time()
+        print('Time taken to sort frenet trajectories:', end_time - start_time)
+        
+        print('Number of valid trajectories:', len(ft_list_valid))
 
+        # Get invalid trajectories
+        drop = [ft.traj_index for ft in ft_list_invalid]
+        reason_invalid = [ft.reason_invalid for ft in ft_list_invalid]
 
-
-        # FIND A LIST OF INDICES TO BE REMOVED
-        drop = [1,2,3,4,5]
-
+        # # Plot the trajectories
+        # # Make both axes the same scale
+        # fig, ax = plt.subplots()
+        # ax.set_aspect('equal', 'box')
+        # for i in range(states.size(0)):
+        #     if i in drop:
+        #         ax.plot(states[i,:, 0], states[i,:, 1], 'r')
+        #     else:
+        #         ax.plot(states[i,:, 0], states[i,:, 1], 'b')
+        
+    
 
         #######################################################################
         # Pass the remaining valid trajectories to the MPPI Planner to calculate cost and find an optimal trajectory
         ###########################################################################
 
+      
 
-        action, plan, all_trajs = mppi_planner.compute_traj(drop)
+        action, plan, all_trajs, COST = mppi_planner.compute_traj(drop)
+
         
+        # FOr each trajectory in valid assign its cost
+        for i in range(len(ft_list_valid)):
+            ft_list_valid[i].cost = COST[i]
         
+
 
 
         # Mapping tensor columns to dictionary keys
@@ -514,32 +568,48 @@ class FrenetPlanner_MPPI(Planner):
             self._trajectory[key][:] = plan[:, col_index].numpy()
         
         self._trajectory['acceleration_mps2'][:] = action[:, 0].numpy()
-        # get the end velocities for the frenét paths
-        current_v = self.ego_state.velocity
-        max_acceleration = self.p.longitudinal.a_max
-        t_min = min(self.frenet_parameters["t_list"])
-        t_max = max(self.frenet_parameters["t_list"])
-        max_v = min(
-            current_v + (max_acceleration / 2.0) * t_max, self.p.longitudinal.v_max
-        )
-        min_v = max(0.01, current_v - max_acceleration * t_min)
+        
 
       
       #######################################################################
       # RENDER THE OPTIMAL TRAJECTORY
       ###########################################################################
         
+        # with self.exec_timer.time_with_cm("plot trajectories"):
+        #     # print some information about the optimal trajectory
+        #     matplotlib.use("TKAgg")
+        #     try:
+        #         all_trajs = all_trajs.cpu().numpy()
+        #         draw_optimal_trajectory(
+        #             scenario=self.scenario,
+        #             time_step=self.ego_state.time_step,
+        #             marked_vehicle=self.ego_id,
+        #             planning_problem=self.planning_problem,
+        #             all_trajs=all_trajs,
+        #             traj=self._trajectory,
+        #             global_path=self.global_path_to_goal,
+        #             global_path_after_goal=self.global_path_after_goal,
+        #             driven_traj=self.driven_traj,
+        #             animation_area=50.0,
+        #             predictions=predictions,
+        #             visible_area=visible_area,
+        #         )
+           
+
+        #     except Exception as e:
+        #         print(e)
+
         with self.exec_timer.time_with_cm("plot trajectories"):
             # print some information about the optimal trajectory
             matplotlib.use("TKAgg")
             try:
-                all_trajs = all_trajs.cpu().numpy()
-                draw_optimal_trajectory(
+                draw_MPPI_valid(
                     scenario=self.scenario,
                     time_step=self.ego_state.time_step,
                     marked_vehicle=self.ego_id,
                     planning_problem=self.planning_problem,
-                    all_trajs=all_trajs,
+                    VALID_traj=ft_list_valid,
+                    INVALID_traj=ft_list_invalid,
                     traj=self._trajectory,
                     global_path=self.global_path_to_goal,
                     global_path_after_goal=self.global_path_after_goal,
@@ -551,8 +621,10 @@ class FrenetPlanner_MPPI(Planner):
            
 
             except Exception as e:
+                print('ERROR PLOTTING')
                 print(e)
         
+
 
     #######################################################################
     # DONE!
@@ -568,9 +640,10 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     path ='recorded/SUMO/DEU_Flensburg-32_1_T-1.xml'
-    path2 =  "recorded/hand-crafted/ZAM_Tjunction-1_486_T-1.xml"
+    path2 =  "recorded/hand-crafted/ZAM_Tjunction-1_223_T-1.xml"
     path3 = "recorded/hand-crafted/ZAM_Tjunction-1_1_T-1.xml"
     path4 = "recorded/hand-crafted/ZAM_Zip-1_57_T-1.xml"
+    path5 = 'recorded/hand-crafted/ZAM_Urban-3_1.xml'
     parser.add_argument("--scenario", default=path2)
     parser.add_argument("--time", action="store_true")
     args = parser.parse_args()
