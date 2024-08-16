@@ -387,10 +387,9 @@ class Objective(object):
         # Sum them along time direction
         costs_s_av = torch.sum(costs_s, dim=0)
         costs_d_av = torch.sum(costs_d, dim=0)
-        print(costs_s_av.shape)
         # Print average
-        print("Average progress reward: ", torch.mean(costs_s_av))
-        print("Average distance reward: ", torch.mean(costs_d_av))
+        print("Average progress cost: ", torch.mean(costs_s_av))
+        print("Average deviation cost: ", torch.mean(costs_d_av))
 
         # Add them and include weights
         w_s = 0.5

@@ -343,6 +343,8 @@ class FrenetPlanner_MPPI(Planner):
         # Get the predictions
         ################################################################
 
+
+
         t_list = self.frenet_parameters["t_list"]
         with self.exec_timer.time_with_cm("simulation/prediction"):
             # Overwrite later
@@ -378,6 +380,7 @@ class FrenetPlanner_MPPI(Planner):
                         ego_state=self.ego_state,
                         radius=self.sensor_radius,
                     )
+
                 # predictions may fail (e.g. SetBasedPrediction DEU_Ffb-1_2_S-1)
                 try:
                     # get dynamic and static visible obstacles since predictor can not handle static obstacles
@@ -387,20 +390,34 @@ class FrenetPlanner_MPPI(Planner):
                     ) = get_dyn_and_stat_obstacles(
                         scenario=self.scenario, obstacle_ids=visible_obstacles
                     )
+
+
+                    # Hack for predictions with other Ego Agents (Full trajectory not available resort to this)
+                    # Investigate maybe doing this at timestep 0 (Might freak out otherwise?)
+                    for obstacle in dyn_visible_obstacles:
+
+                        if len(self.scenario._dynamic_obstacles[obstacle].prediction.trajectory.state_list) <= self.ego_state.time_step:
+                            print('Duplicated State at timestep:', self.ego_state.time_step)
+                            self.scenario._dynamic_obstacles[obstacle].prediction.trajectory.state_list.append(
+                                self.scenario._dynamic_obstacles[obstacle].prediction.trajectory.state_list[-1]
+                            )
+
+
+
                     # get prediction for dynamic obstacles
                     predictions = self.predictor.step(
                         time_step=self.ego_state.time_step,
                         obstacle_id_list=dyn_visible_obstacles,
                         scenario=self.scenario,
                     )
-                    # create and add prediction of static obstacles
+                    #create and add prediction of static obstacles
                     predictions = add_static_obstacle_to_prediction(
                         scenario=self.scenario,
                         predictions=predictions,
                         obstacle_id_list=stat_visible_obstacles,
                         pred_horizon=max(t_list) / self.scenario.dt,
                     )
-        
+                    
                 # if prediction fails use ground truth as prediction
                 except Exception as e:
                     print(
@@ -412,7 +429,8 @@ class FrenetPlanner_MPPI(Planner):
                         obstacle_ids=visible_obstacles,
                         time_step=self.ego_state.time_step,
                     )
-              
+
+
                 # add orientation and dimensions of the obstacles to the prediction
                 predictions = get_orientation_velocity_and_shape_of_prediction(
                     predictions=predictions, scenario=self.scenario
@@ -644,7 +662,11 @@ if __name__ == "__main__":
     path3 = "recorded/hand-crafted/ZAM_Tjunction-1_1_T-1.xml"
     path4 = "recorded/hand-crafted/ZAM_Zip-1_57_T-1.xml"
     path5 = 'recorded/hand-crafted/ZAM_Urban-3_1.xml'
-    parser.add_argument("--scenario", default=path2)
+    path6 = 'recorded/cooperative/C-DEU_B471-1_1_T-1.xml'
+    path7 = 'recorded/cooperative/C-DEU_B471-2_1.xml'
+    path8 = 'recorded/Downloads/ZAM_Over-1_1.xml'
+    path9  = "recorded/Custom/2_agents.xml"
+    parser.add_argument("--scenario", default=path9)
     parser.add_argument("--time", action="store_true")
     args = parser.parse_args()
 

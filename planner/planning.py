@@ -192,7 +192,7 @@ def add_ego_vehicles_to_scenario(
         )
 
         prediction = TrajectoryPrediction(trajectory=trajectory, shape=obstacle_shape)
-
+        prediction.final_time_step = 100
         ego_obstacle = DynamicObstacle(
             obstacle_id=agent_id,
             obstacle_type=ObstacleType.CAR,
