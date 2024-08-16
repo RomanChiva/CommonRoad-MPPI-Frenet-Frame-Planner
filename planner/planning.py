@@ -262,6 +262,11 @@ class Planner(object):
         # trajectory
         dt = 0.1
         self._trajectory = {
+            "s_loc_m": np.zeros(self.min_trajectory_length),
+            "d_loc_m": np.zeros(self.min_trajectory_length),
+            "d_d_loc_mps": np.zeros(self.min_trajectory_length),
+            "d_dd_loc_mps2": np.zeros(self.min_trajectory_length),
+            ## Added some extras above to test if frenet traj generator would work
             "x_m": np.zeros(self.min_trajectory_length),
             "y_m": np.zeros(self.min_trajectory_length),
             "psi_rad": np.zeros(self.min_trajectory_length),

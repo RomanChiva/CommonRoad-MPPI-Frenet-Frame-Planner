@@ -1,13 +1,14 @@
 """Evaluate a frenet Planner."""
 
 from PA_CommonRoad.planner.plannertools.scenario_handler import PlannerCreator
-from PA_CommonRoad.planner.Frenet.frenet_planner import FrenetPlanner_MPPI as FrenetPlanner
+from PA_CommonRoad.planner.Frenet.frenet_planner import FrenetPlanner_MPPI
+from PA_CommonRoad.planner.Frenet.frenet_planner import FrenetPlanner_SAMPLES
 
 
 class FrenetCreator(PlannerCreator):
     """Class for constructing a planner object from a Handler object."""
 
-    def __init__(self, settings, weights=None):
+    def __init__(self, settings, weights=None, type_="MPPI"):
         """__init__ function to construct the object.
 
         This function is called from the user.
@@ -17,6 +18,7 @@ class FrenetCreator(PlannerCreator):
         self.frenet_settings = settings["frenet_settings"]
         self.settings = settings
         self.weights = weights
+        self.type_ = type_
 
     def get_planner(self, scenario_handler, ego_vehicle_id):
         """Create the planner from the scenario handler object.
@@ -30,19 +32,36 @@ class FrenetCreator(PlannerCreator):
         Returns:
             obj: a planner object.
         """
-        return FrenetPlanner(
-            scenario=scenario_handler.scenario,
-            planning_problem=scenario_handler.planning_problem_set.find_planning_problem_by_id(
-                scenario_handler.agent_planning_problem_id_assignment[ego_vehicle_id]
-            ),
-            ego_id=ego_vehicle_id,
-            vehicle_params=scenario_handler.vehicle_params,
-            exec_timer=scenario_handler.exec_timer,
-            mode=self.frenet_settings["mode"],
-            plot_frenet_trajectories=self.show_visualization,
-            frenet_parameters=self.frenet_settings["frenet_parameters"],
-            weights=self.weights,
-            settings=self.settings,
+        if self.type_ == "MPPI":
+            return FrenetPlanner_MPPI(
+                scenario=scenario_handler.scenario,
+                planning_problem=scenario_handler.planning_problem_set.find_planning_problem_by_id(
+                    scenario_handler.agent_planning_problem_id_assignment[ego_vehicle_id]
+                ),
+                ego_id=ego_vehicle_id,
+                vehicle_params=scenario_handler.vehicle_params,
+                exec_timer=scenario_handler.exec_timer,
+                mode=self.frenet_settings["mode"],
+                plot_frenet_trajectories=self.show_visualization,
+                frenet_parameters=self.frenet_settings["frenet_parameters"],
+                weights=self.weights,
+                settings=self.settings,
+        )
+
+        elif self.type_ == "SAMPLES":
+            return FrenetPlanner_SAMPLES(
+                scenario=scenario_handler.scenario,
+                planning_problem=scenario_handler.planning_problem_set.find_planning_problem_by_id(
+                    scenario_handler.agent_planning_problem_id_assignment[ego_vehicle_id]
+                ),
+                ego_id=ego_vehicle_id,
+                vehicle_params=scenario_handler.vehicle_params,
+                exec_timer=scenario_handler.exec_timer,
+                mode=self.frenet_settings["mode"],
+                plot_frenet_trajectories=self.show_visualization,
+                frenet_parameters=self.frenet_settings["frenet_parameters"],
+                weights=self.weights,
+                settings=self.settings,
         )
 
     @staticmethod
