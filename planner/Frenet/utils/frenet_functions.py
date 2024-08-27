@@ -698,8 +698,6 @@ def sort_frenet_trajectories_samples(
     ft_list_invalid = [item for sublist in ft_list_invalid for item in sublist]
 
 
-    print('N Valid:', len(ft_list_highest_validity), 'N Invalid:', len(ft_list_invalid), 'Reasons:', [fp.reason_invalid for fp in ft_list_invalid])
-
     for fp in ft_list_highest_validity:
         (
             fp.cost,

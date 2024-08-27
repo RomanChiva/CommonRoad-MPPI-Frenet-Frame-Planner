@@ -51,7 +51,6 @@ def calc_risk(
     timer = ExecTimer(timing_enabled=False) if exec_timer is None else exec_timer
 
     modes = params['modes']
-    print('MODES', modes)
     coeffs = params['harm']
 
     with timer.time_with_cm(

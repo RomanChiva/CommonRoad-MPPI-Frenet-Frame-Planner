@@ -286,7 +286,6 @@ def max_risk_valid(ft, risk_params, mode):
     """
 
     # Print curret risks and maximum
-    print("Ego Obstacle and Max risks: ", sum(ft.ego_risk_dict.values()), max(ft.ego_risk_dict.values()), risk_params["max_acceptable_risk"])
 
     if mode == "risk":
         if len(ft.obst_risk_dict.values()) > 0:
