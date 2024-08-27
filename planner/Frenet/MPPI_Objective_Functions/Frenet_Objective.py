@@ -392,9 +392,10 @@ class Objective(object):
         print("Average deviation cost: ", torch.mean(costs_d_av))
 
         # Add them and include weights
-        w_s = 0.5
-        w_d = 1
-        costs = w_s*(costs_s)**2 + w_d*costs_d
+        w_s = 1.0
+        w_d = 1.0
+        road_boundary_factor = 1.0
+        costs = w_s*costs_s + w_d*(costs_d*road_boundary_factor)**2
         
 
         return costs

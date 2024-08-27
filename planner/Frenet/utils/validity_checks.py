@@ -74,14 +74,14 @@ def check_validity(
         if not velocity_valid(ft, vehicle_params):
             return 0, "acceleration"
 
-    with timer.time_with_cm(
-        "simulation/sort trajectories/check validity/check curvature"
-    ):
-        # check maximum curvature
-        reason_curvature_invalid = curvature_valid(ft, vehicle_params)
+    # with timer.time_with_cm(
+    #     "simulation/sort trajectories/check validity/check curvature"
+    # ):
+    #     # check maximum curvature
+    #     reason_curvature_invalid = curvature_valid(ft, vehicle_params)
 
-        if reason_curvature_invalid is not None:
-            return 0, f"curvature ({reason_curvature_invalid})"
+    #     if reason_curvature_invalid is not None:
+    #         return 0, f"curvature ({reason_curvature_invalid})"
 
     with timer.time_with_cm(
         "simulation/sort trajectories/check validity/check collision"
@@ -284,6 +284,10 @@ def max_risk_valid(ft, risk_params, mode):
     Returns:
         [type]: [description]
     """
+
+    # Print curret risks and maximum
+    print("Ego Obstacle and Max risks: ", sum(ft.ego_risk_dict.values()), max(ft.ego_risk_dict.values()), risk_params["max_acceptable_risk"])
+
     if mode == "risk":
         if len(ft.obst_risk_dict.values()) > 0:
             if sum(ft.ego_risk_dict.values()) > risk_params["max_acceptable_risk"]:

@@ -492,14 +492,14 @@ def draw_frenet_trajectories(
             if p.valid_level >= 10:
                 color = mapper.to_rgba(p.cost)
                 ax.plot(p.x, p.y, alpha=1.0, color=color, zorder=20, picker=picker)
-
+    
     # draw planned trajectory
     if traj is not None:
         ax.plot(
             traj.x,
             traj.y,
             alpha=1.0,
-            color="green",
+            color="yellow",
             zorder=25,
             lw=3.0,
             label="Best trajectory",

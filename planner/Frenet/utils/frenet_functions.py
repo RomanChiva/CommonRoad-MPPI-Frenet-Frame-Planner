@@ -597,6 +597,135 @@ def sort_frenet_trajectories(
     return ft_list_highest_validity, ft_list_invalid, validity_dict
 
 
+def sort_frenet_trajectories_samples(
+    ego_state,
+    fp_list: [FrenetTrajectory],
+    global_path: np.ndarray,
+    predictions: dict,
+    mode: str,
+    params: dict,
+    planning_problem: PlanningProblem,
+    scenario: Scenario,
+    vehicle_params,
+    ego_id: int,
+    dt: float,
+    sensor_radius: float,
+    road_boundary,
+    collision_checker,
+    goal_area,
+    exec_timer=None,
+    reach_set=None,
+):
+    """Sort the frenet trajectories. Check validity of all frenet trajectories in fp_list and sort them by increasing cost.
+
+    Args:
+        ego_state (State): Current state of the ego vehicle.
+        fp_list ([FrenetTrajectory]): List with all frenét trajectories.
+        global_path (np.ndarray): Global path.
+        predictions (dict): Predictions of the visible obstacles.
+        mode (Str): Mode of the frenét planner.
+        planning_problem (PlanningProblem): Planning problem of the scenario.
+        scenario (Scenario): Scenario.
+        vehicle_params (VehicleParameters): Parameters of the ego vehicle.
+        ego_id (int): ID of the ego vehicle.
+        dt (float): Delta time of the scenario.
+        sensor_radius (float): Sensor radius for the sensor model.
+        road_boundary (ShapeGroup): Shape group representing the road boundary.
+        collision_checker (CollisionChecker): Collision checker for the scenario.
+        goal_area (ShapeGroup): Shape group of the goal area.
+        exec_times_dict (dict): Dictionary for the execution times. Defaults to None.
+
+    Returns:
+        [FrenetTrajectory]: List of sorted valid frenét trajectories.
+        [FrenetTrajectory]: List of sorted invalid frenét trajectories.
+        dict: Dictionary with execution times.
+    """
+    timer = ExecTimer(timing_enabled=False) if exec_timer is None else exec_timer
+
+    validity_dict = {key: [] for key in VALIDITY_LEVELS}
+
+    if mode == "ground_truth" or mode == "WaleNet":
+        cost_predictions = None
+    else:
+        cost_predictions = predictions
+
+    if predictions is not None:
+        for fp in fp_list:
+
+            fp.ego_risk_dict, fp.obst_risk_dict, fp.ego_harm_dict, fp.obst_harm_dict, fp.bd_harm = calc_risk(
+                traj=fp,
+                ego_state=ego_state,
+                predictions=predictions,
+                scenario=scenario,
+                ego_id=ego_id,
+                vehicle_params=vehicle_params,
+                road_boundary=road_boundary,
+                params=params,
+                exec_timer=timer,
+            )
+
+    for fp in fp_list:
+        with timer.time_with_cm("simulation/sort trajectories/check validity/total"):
+            # check validity
+            fp.valid_level, fp.reason_invalid = check_validity(
+                ft=fp,
+                ego_state=ego_state,
+                scenario=scenario,
+                vehicle_params=vehicle_params,
+                risk_params=params['modes'],
+                predictions=predictions,
+                mode=mode,
+                road_boundary=road_boundary,
+                collision_checker=collision_checker,
+                exec_timer=timer,
+            )
+
+            validity_dict[fp.valid_level].append(fp)
+
+    validity_level = max(
+        [lvl for lvl in VALIDITY_LEVELS if len(validity_dict[lvl])]
+    )
+
+    # List of validities for all trajectories
+    valid_levels = [fp.valid_level for fp in fp_list]
+
+
+
+    ft_list_highest_validity = validity_dict[validity_level]
+    ft_list_invalid = [
+        validity_dict[inv] for inv in VALIDITY_LEVELS if inv < validity_level
+    ]
+    ft_list_invalid = [item for sublist in ft_list_invalid for item in sublist]
+
+
+    print('N Valid:', len(ft_list_highest_validity), 'N Invalid:', len(ft_list_invalid), 'Reasons:', [fp.reason_invalid for fp in ft_list_invalid])
+
+    for fp in ft_list_highest_validity:
+        (
+            fp.cost,
+            fp.cost_dict,
+        ) = calc_trajectory_costs(
+            traj=fp,
+            global_path=global_path,
+            ego_state=ego_state,
+            validity_level=validity_level,
+            planning_problem=planning_problem,
+            params=params,
+            scenario=scenario,
+            ego_id=ego_id,
+            dt=dt,
+            predictions=cost_predictions,
+            sensor_radius=sensor_radius,
+            vehicle_params=vehicle_params,
+            goal_area=goal_area,
+            exec_timer=timer,
+            mode=mode,
+            reach_set=reach_set
+        )
+
+    return ft_list_highest_validity, ft_list_invalid, validity_dict
+
+
 def calc_global_trajectory(
     csp: CubicSpline2D,
     s: [float],

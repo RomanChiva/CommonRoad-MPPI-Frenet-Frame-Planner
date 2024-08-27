@@ -4,7 +4,7 @@
     "maximin": 33.3,
     "responsibility": 0.5,
     "ego": 0.0,
-    "risk_cost": 250,
+    "risk_cost": 500,
     "visible_area": 0,
     "lon_jerk": 0.0,
     "lat_jerk": 0.0,

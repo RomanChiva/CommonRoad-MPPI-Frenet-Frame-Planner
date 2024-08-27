@@ -63,6 +63,7 @@ from PA_CommonRoad.planner.Frenet.utils.frenet_functions import (
     calc_frenet_trajectories,
     get_v_list,
     sort_frenet_trajectories,
+    sort_frenet_trajectories_samples,
 )
 from PA_CommonRoad.planner.Frenet.utils.logging import FrenetLogging
 from PA_CommonRoad.planner.utils.responsibility import assign_responsibility_by_action_space
@@ -510,37 +511,37 @@ class FrenetPlanner_MPPI(Planner):
             # It all good the trajectory is valid
         ###########################################################################
        
-        # Sort the trajectories
-        start_time = time.time()
-        with self.exec_timer.time_with_cm("simulation/sort trajectories/total"):
-            # sorted list (increasing costs)
-            ft_list_valid, ft_list_invalid, validity_dict = sort_frenet_trajectories(
-                ego_state=self.ego_state,
-                fp_list=ft_list_1,
-                global_path=self.global_path,
-                predictions=predictions,
-                mode=self.mode,
-                params=self.params_dict,
-                planning_problem=self.planning_problem,
-                scenario=self.scenario,
-                vehicle_params=self.p,
-                ego_id=self.ego_id,
-                dt=self.frenet_parameters["dt"],
-                sensor_radius=self.sensor_radius,
-                road_boundary=self.road_boundary,
-                collision_checker=self.collision_checker,
-                goal_area=self.goal_area,
-                exec_timer=self.exec_timer,
-                reach_set=(self.reach_set if self.responsibility else None)
-            )
-        end_time = time.time()
-        print('Time taken to sort frenet trajectories:', end_time - start_time)
+        # # Sort the trajectories
+        # start_time = time.time()
+        # with self.exec_timer.time_with_cm("simulation/sort trajectories/total"):
+        #     # sorted list (increasing costs)
+        #     ft_list_valid, ft_list_invalid, validity_dict = sort_frenet_trajectories(
+        #         ego_state=self.ego_state,
+        #         fp_list=ft_list_1,
+        #         global_path=self.global_path,
+        #         predictions=predictions,
+        #         mode=self.mode,
+        #         params=self.params_dict,
+        #         planning_problem=self.planning_problem,
+        #         scenario=self.scenario,
+        #         vehicle_params=self.p,
+        #         ego_id=self.ego_id,
+        #         dt=self.frenet_parameters["dt"],
+        #         sensor_radius=self.sensor_radius,
+        #         road_boundary=self.road_boundary,
+        #         collision_checker=self.collision_checker,
+        #         goal_area=self.goal_area,
+        #         exec_timer=self.exec_timer,
+        #         reach_set=(self.reach_set if self.responsibility else None)
+        #     )
+        # end_time = time.time()
+        # print('Time taken to sort frenet trajectories:', end_time - start_time)
         
-        print('Number of valid trajectories:', len(ft_list_valid))
+        # print('Number of valid trajectories:', len(ft_list_valid))
 
-        # Get invalid trajectories
-        drop = [ft.traj_index for ft in ft_list_invalid]
-        reason_invalid = [ft.reason_invalid for ft in ft_list_invalid]
+        # # Get invalid trajectories
+        # drop = [ft.traj_index for ft in ft_list_invalid]
+        # reason_invalid = [ft.reason_invalid for ft in ft_list_invalid]
 
         # # Plot the trajectories
         # # Make both axes the same scale
@@ -558,10 +559,28 @@ class FrenetPlanner_MPPI(Planner):
         # Pass the remaining valid trajectories to the MPPI Planner to calculate cost and find an optimal trajectory
         ###########################################################################
 
-      
+        ft_list_valid = ft_list_1
+        ft_list_invalid = []
+        drop = []
 
         action, plan, all_trajs, COST = mppi_planner.compute_traj(drop)
 
+        # Make a histogram of the costs and plot it in a separate window
+        figz,axz = plt.subplots()
+        axz.hist(COST, bins=50)
+        axz.set_title('Cost Distribution')
+        axz.set_xlabel('Cost')
+        axz.set_ylabel('Frequency')
+        plt.show()
+        
+
+
+
+        # Transform cost with MPPI boltzmann
+        # FInd minimum
+        min_cost = min(COST)
+        COST = [np.exp(-self.cfg.mppi.lambda_*(cost - min_cost)) for cost in COST]
+        # Normalize
         
         # FOr each trajectory in valid assign its cost
         for i in range(len(ft_list_valid)):
@@ -904,7 +923,6 @@ class FrenetPlanner_SAMPLES(Planner):
         ################################################################
 
 
-
         t_list = self.frenet_parameters["t_list"]
         with self.exec_timer.time_with_cm("simulation/prediction"):
             # Overwrite later
@@ -962,14 +980,13 @@ class FrenetPlanner_SAMPLES(Planner):
                                 self.scenario._dynamic_obstacles[obstacle].prediction.trajectory.state_list[-1]
                             )
 
-
-
                     # get prediction for dynamic obstacles
                     predictions = self.predictor.step(
                         time_step=self.ego_state.time_step,
                         obstacle_id_list=dyn_visible_obstacles,
                         scenario=self.scenario,
                     )
+                   
                     #create and add prediction of static obstacles
                     predictions = add_static_obstacle_to_prediction(
                         scenario=self.scenario,
@@ -1000,16 +1017,18 @@ class FrenetPlanner_SAMPLES(Planner):
                 predictions = assign_responsibility_by_action_space(
                     self.scenario, self.ego_state, predictions
                 )
-                
 
             else:
                 # TODO: Get GT prediction here for responsibility
                 predictions = None
+
+        
         # calculate reachable sets
         if self.responsibility:
             with self.exec_timer.time_with_cm(
                     "simulation/calculate and check reachable sets"
             ):
+                
                 self.reach_set.calc_reach_sets(self.ego_state, list(predictions.keys()))
 
             if self.reach_set is not None:
@@ -1020,7 +1039,7 @@ class FrenetPlanner_SAMPLES(Planner):
         #########################################################################
         # Generate MPPI TRAJECTORIES
         ########################################################################
-
+        
         mppi_planner = self._set_planner(self.cfg, predictions)
         
 
@@ -1032,7 +1051,6 @@ class FrenetPlanner_SAMPLES(Planner):
         except:
             steering_angle = 0.0
         
-
  
         vehicle_state = [self.ego_state.position[0], self.ego_state.position[1], self.ego_state.orientation, self.ego_state.velocity, steering_angle]
         vehicle_velocity = [self.ego_state.velocity]
@@ -1046,7 +1064,6 @@ class FrenetPlanner_SAMPLES(Planner):
         # USE FRENET TRAJECTORIES INSTEAD
         ###########################################################################
 
-
          # find position along the reference spline (s, s_d, s_dd, d, d_d, d_dd)
         
         c_s = self.trajectory["s_loc_m"][1]
@@ -1057,21 +1074,17 @@ class FrenetPlanner_SAMPLES(Planner):
         c_d_dd = self.trajectory["d_dd_loc_mps2"][1]
 
 
-        # Set frenet paraemters t list to 3.5
-        self.frenet_parameters["t_list"] = [3.5]
-
-
-
         # get the end velocities for the frenét paths
         current_v = self.ego_state.velocity
         max_acceleration = self.p.longitudinal.a_max
         t_min = min(self.frenet_parameters["t_list"])
         t_max = max(self.frenet_parameters["t_list"])
-        
         max_v = min(
             current_v + (max_acceleration / 2.0) * t_max, self.p.longitudinal.v_max
         )
+        
         min_v = max(0.01, current_v - max_acceleration * t_min)
+
 
         with self.exec_timer.time_with_cm("simulation/get v list"):
             v_list = get_v_list(
@@ -1084,7 +1097,7 @@ class FrenetPlanner_SAMPLES(Planner):
                 n_samples=self.frenet_parameters["n_v_samples"],
             )
 
-        
+        print(v_list, 'VLIST')
         with self.exec_timer.time_with_cm("simulation/calculate trajectories/total"):
             d_list = self.frenet_parameters["d_list"]
             t_list = self.frenet_parameters["t_list"]
@@ -1113,6 +1126,7 @@ class FrenetPlanner_SAMPLES(Planner):
         
         
 
+        # For ft in ft list plot the trajectory and add text at the end with the index
        # Visualize MPPI Trajectories plot X, Y 
         # Plot in a new figure an stop execution
         
@@ -1141,11 +1155,12 @@ class FrenetPlanner_SAMPLES(Planner):
             # It all good the trajectory is valid
         ###########################################################################
        
+       
         # Sort the trajectories
         start_time = time.time()
         with self.exec_timer.time_with_cm("simulation/sort trajectories/total"):
             # sorted list (increasing costs)
-            ft_list_valid, ft_list_invalid, validity_dict = sort_frenet_trajectories(
+            ft_list_valid, ft_list_invalid, validity_dict = sort_frenet_trajectories_samples(
                 ego_state=self.ego_state,
                 fp_list=ft_list,
                 global_path=self.global_path,
@@ -1191,44 +1206,11 @@ class FrenetPlanner_SAMPLES(Planner):
 
       
 
-        #action, plan, all_trajs, COST = mppi_planner.compute_traj(drop)
-
-        
-        # # FOr each trajectory in valid assign its cost
-        # for i in range(len(ft_list_valid)):
-        #     ft_list_valid[i].cost = COST[i]
-        
-        
-        x = []
-        y = []
-        psi = []
-        v = []
-        delta = []
-        for ft in ft_list_valid:
-            x.append(ft.x.tolist())
-            y.append(ft.y.tolist())
-            psi.append(ft.yaw.tolist())
-            v.append(ft.v.tolist())
-            # Inverse tan of curvature*wheelbase
-            d = np.arctan(self.p.l*ft.curv)
-            delta.append(d.tolist()) 
-
-        # Convert to tensor
-        x = torch.tensor(x)
-        y = torch.tensor(y)
-        psi = torch.tensor(psi)
-        v = torch.tensor(v)
-        delta = torch.tensor(delta)
-
-        states_ft_generated = torch.stack([x, y, psi, v, delta], dim=2)
-
-        # COmpute costs
-        costs = self.objective.compute_cost(states_ft_generated)
-        # Sum cost along dim 1
-        costs = torch.sum(costs, dim=1)
-        # Get the index of the minimum cost
-        min_cost_index = torch.argmin(costs)
-        # Get the optimal trajectory
+        costs = [ft.cost for ft in ft_list_valid]
+  
+        # Find index of minimum in list
+        min_cost_index = costs.index(min(costs))
+  
         optimal_trajectory = ft_list_valid[min_cost_index]
 
         # Set optimal trajectory to the _trajectory
@@ -1245,78 +1227,11 @@ class FrenetPlanner_SAMPLES(Planner):
         self._trajectory['d_dd_loc_mps2'] = optimal_trajectory.d_dd
 
 
-        # # Mapping tensor columns to dictionary keys
-        # column_mapping = {
-        #     0: 'x_m',
-        #     1: 'y_m',
-        #     2: 'psi_rad',
-        #     3: 'v_mps',
-        #     4: 'delta_rad',
-        # }
-        # # Print _trajectory keys
-        # # And types
-        
-        # # Filling in values from the tensor into the dictionary arrays
-        # for col_index, key in column_mapping.items():
-        #     self._trajectory[key][:] = plan[:, col_index].numpy()
-        
-        # self._trajectory['acceleration_mps2'][:] = action[:, 0].numpy()
-        
-        
 
       
       #######################################################################
       # RENDER THE OPTIMAL TRAJECTORY
       ###########################################################################
-        
-        # with self.exec_timer.time_with_cm("plot trajectories"):
-        #     # print some information about the optimal trajectory
-        #     matplotlib.use("TKAgg")
-        #     try:
-        #         all_trajs = all_trajs.cpu().numpy()
-        #         draw_optimal_trajectory(
-        #             scenario=self.scenario,
-        #             time_step=self.ego_state.time_step,
-        #             marked_vehicle=self.ego_id,
-        #             planning_problem=self.planning_problem,
-        #             all_trajs=ft_list_valid,
-        #             traj=self._trajectory,
-        #             global_path=self.global_path_to_goal,
-        #             global_path_after_goal=self.global_path_after_goal,
-        #             driven_traj=self.driven_traj,
-        #             animation_area=50.0,
-        #             predictions=predictions,
-        #             visible_area=visible_area,
-        #         )
-           
-
-        #     except Exception as e:
-        #         print(e)
-
-        # with self.exec_timer.time_with_cm("plot trajectories"):
-        #     # print some information about the optimal trajectory
-        #     matplotlib.use("TKAgg")
-        #     try:
-        #         draw_MPPI_valid(
-        #             scenario=self.scenario,
-        #             time_step=self.ego_state.time_step,
-        #             marked_vehicle=self.ego_id,
-        #             planning_problem=self.planning_problem,
-        #             VALID_traj=ft_list_valid,
-        #             INVALID_traj=ft_list_invalid,
-        #             traj=self._trajectory,
-        #             global_path=self.global_path_to_goal,
-        #             global_path_after_goal=self.global_path_after_goal,
-        #             driven_traj=self.driven_traj,
-        #             animation_area=50.0,
-        #             predictions=predictions,
-        #             visible_area=visible_area,
-        #         )
-           
-
-        #     except Exception as e:
-        #         print('ERROR PLOTTING')
-        #         print(e)
         
 
         with self.exec_timer.time_with_cm("plot trajectories"):
@@ -1328,7 +1243,7 @@ class FrenetPlanner_SAMPLES(Planner):
                     time_step=self.ego_state.time_step,
                     marked_vehicle=self.ego_id,
                     planning_problem=self.planning_problem,
-                    traj=None,
+                    traj=optimal_trajectory,
                     all_traj=ft_list,
                     global_path=self.global_path_to_goal,
                     global_path_after_goal=self.global_path_after_goal,
@@ -1340,9 +1255,6 @@ class FrenetPlanner_SAMPLES(Planner):
             except Exception as e:
                 print(e)
        
-
-
-
 
 
     #######################################################################
@@ -1367,6 +1279,8 @@ if __name__ == "__main__":
     path7 = 'recorded/cooperative/C-DEU_B471-2_1.xml'
     path8 = 'recorded/Downloads/ZAM_Over-1_1.xml'
     path9  = "recorded/Custom/2_agents.xml"
+    path10 = "recorded/Custom/EMPTY_MAP.xml"
+    pathR =  "recorded/hand-crafted/ZAM_Tjunction-1_55_T-1.xml"
     parser.add_argument("--scenario", default=path9)
     parser.add_argument("--time", action="store_true")
     args = parser.parse_args()

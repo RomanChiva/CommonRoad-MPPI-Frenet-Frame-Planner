@@ -239,7 +239,7 @@ class Planner(object):
         self.__ego_state = planning_problem.initial_state
 
         # minimum trajectory length
-        self.__min_trajectory_length = 35
+        self.__min_trajectory_length = 20
 
         # prediction
         self.__prediction = None

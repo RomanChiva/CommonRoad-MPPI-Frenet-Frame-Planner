@@ -74,6 +74,7 @@ def calc_trajectory_costs(
         dict: Dictionary with ego harms for every timestep concerning every obstacle
         dict: Dictionary with obstacle harms for every timestep concerning every obstacle
     """
+
     timer = ExecTimer(timing_enabled=False) if exec_timer is None else exec_timer
 
     timer.start_timer("simulation/sort trajectories/calculate costs/total")
@@ -96,12 +97,13 @@ def calc_trajectory_costs(
             goal_area=goal_area,
             exec_timer=timer,
         )
-
+    
     with timer.time_with_cm(
         "simulation/sort trajectories/calculate costs/calculate risk/total"
-    ):
+    ):  
+        bool_contain_cache = None
         if weights["risk_cost"] > 0.0 and predictions is not None:
-
+            
             bayes_cost = get_bayesian_costs(
                 ego_risk_max=traj.ego_risk_dict, obst_risk_max=traj.obst_risk_dict, boundary_harm=traj.bd_harm
             )
@@ -340,7 +342,6 @@ def calc_trajectory_costs(
         'unweighted_cost': cost_dict,
         'total_cost': factor * cost,
     }
-
     timer.stop_timer("simulation/sort trajectories/calculate costs/total")
 
     return factor * cost, output_dict
