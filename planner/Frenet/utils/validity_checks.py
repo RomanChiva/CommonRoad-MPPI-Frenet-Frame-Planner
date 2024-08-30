@@ -74,14 +74,14 @@ def check_validity(
         if not velocity_valid(ft, vehicle_params):
             return 0, "acceleration"
 
-    # with timer.time_with_cm(
-    #     "simulation/sort trajectories/check validity/check curvature"
-    # ):
-    #     # check maximum curvature
-    #     reason_curvature_invalid = curvature_valid(ft, vehicle_params)
+    with timer.time_with_cm(
+        "simulation/sort trajectories/check validity/check curvature"
+    ):
+        # check maximum curvature
+        reason_curvature_invalid = curvature_valid(ft, vehicle_params)
 
-    #     if reason_curvature_invalid is not None:
-    #         return 0, f"curvature ({reason_curvature_invalid})"
+        if reason_curvature_invalid is not None:
+            return 0, f"curvature ({reason_curvature_invalid})"
 
     with timer.time_with_cm(
         "simulation/sort trajectories/check validity/check collision"
@@ -197,7 +197,7 @@ def curvature_valid(ft, vehicle_params):
     # below this velocity, it is assumed that the vehicle can follow the turning radius
     # above this velocity, the curvature is calculated differently
     threshold_low_velocity = np.sqrt(vehicle_params.lateral_a_max * turning_radius)
-
+    print("threshold_low_velocity", threshold_low_velocity)
     c = abs(ft.curv)
     for i in range(len(ft.t)):
         # get curvature via turning radius

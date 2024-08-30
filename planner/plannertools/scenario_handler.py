@@ -34,9 +34,9 @@ from commonroad.scenario.obstacle import (
     ObstacleRole,
     ObstacleType,
 )
-#from PA_CommonRoad.planner.Frenet.utils.helper_fun
+from PA_CommonRoad.planner.Frenet.utils.visualization import animate_scenario, draw_scenario
 
-
+import matplotlib.pyplot as plt
 
 
 class ScenarioHandler:
@@ -164,6 +164,23 @@ class ScenarioHandler:
             max_simulation_time_steps = int(max_time_steps * 2.0)
 
         for time_step in range(max_simulation_time_steps):
+
+            
+            # Create Axis to draw on
+            ax = draw_scenario(scenario = self.scenario,
+                                    time_step = time_step,
+                                    marked_vehicle=[agent.agent_id for agent in self.agent_list],
+                                    planning_problem = None,
+                                    traj=None,
+                                    visible_area=None,
+                                    animation_area=55.0,
+                                    global_path=None,
+                                    global_path_after_goal=None,
+                                    driven_traj=None,
+                                    ax=None,
+                                    picker=False,
+                                    show_label=True,)                  
+
             for i in range(len(self.agent_list)):
                 # Also pass in timestep because it is needed in the recorder
                 # That gets derived from the evaluator
@@ -171,7 +188,14 @@ class ScenarioHandler:
                 ID = self.agent_list[i].agent_id
                 collision_checker = self.collision_checkers[ID]
                 self._check_collision(agent=self.agent_list[i], time_step=time_step,collision_checker= collision_checker)
-                self._do_simulation_step(agent=self.agent_list[i], time_step=time_step)
+                self._do_simulation_step(agent=self.agent_list[i], time_step=time_step,ax=ax)
+
+                # Potentially save figs?
+            plt.pause(0.01)
+            # Save fig
+            plt.savefig(f"/home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/fig_{time_step}.png")
+            
+
 
             # stop if the max_simulation_time is reached and no reason was found
             if time_step == (max_simulation_time_steps - 1):
@@ -185,7 +209,7 @@ class ScenarioHandler:
     def _do_simulation_step(self, **kwargs):
         # This does the planning of the trajectory nothing else
         agent = kwargs["agent"]
-        agent.step(scenario=self.scenario)
+        agent.step(scenario=self.scenario,ax=kwargs["ax"])
 
     def _create_planner_agent_for_ego_vehicle(self, ego_vehicle_id):
         # TimeOut 10 seconds to create a planner

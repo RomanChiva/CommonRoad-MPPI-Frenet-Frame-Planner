@@ -516,6 +516,92 @@ def draw_frenet_trajectories(
     plt.pause(0.0001)
 
 
+
+def draw_ego_only(
+    traj=None,
+    all_traj=None,
+    predictions: dict = None,
+    ax=None,
+    picker=False,
+
+):
+    """
+    Plot all frenét trajectories.
+
+    Args:
+        scenario (Scenario): Considered Scenario.
+        time_step (int): Current time step.
+        marked_vehicle ([int]): IDs of the marked vehicles. Defaults to None.
+        planning_problem (PlanningProblem): Considered planning problem. Defaults to None.
+        traj (FrenetTrajectory): The best trajectory of all frenét trajectories. Defaults to None.
+        all_traj ([FrenetTrajectory]): All frenét trajectories. Defaults to None.
+        fut_pos_list (np.ndarray): Future positions of the vehicles. Defaults to None.
+        visible_area (shapely.Polygon): Polygon of the visible area. Defaults to None.
+        animation_area (float): Area that should be shown. Defaults to 40.0.
+        global_path (np.ndarray): Global path for the planning problem. Defaults to None.
+        global_path_after_goal (np.ndarray): Global path for the planning problem after reaching the goal. Defaults to None.
+        driven_traj ([States]): Already driven trajectory of the ego vehicle. Defaults to None.
+        save_fig (bool): True if the figure should be saved. Defaults to False.
+    """
+
+    
+    animation_area = 50
+     # x and y axis description
+    ax.set_xlabel("x in m")
+    ax.set_ylabel("y in m")
+
+    # align ego position to the center
+    ax.set_xlim(- animation_area, animation_area)
+    ax.set_ylim(- animation_area,  animation_area)
+
+
+
+
+    # Draw all possible trajectories with their costs as colors
+    if all_traj is not None:
+
+        # x and y axis description
+        ax.set_xlabel("x in m")
+        ax.set_ylabel("y in m")
+
+
+        # mormalize the costs of the trajectories to map colors to them
+        norm = matplotlib.colors.Normalize(
+            vmin=min([all_traj[i].cost for i in range(len(all_traj))]),
+            vmax=max([all_traj[i].cost for i in range(len(all_traj))]),
+            clip=True,
+        )
+        mapper = cm.ScalarMappable(norm=norm, cmap=green_to_red_colormap())
+
+        # then plot all valid trajectories
+        for p in reversed(all_traj):
+            if p.valid_level >= 10:
+                color = mapper.to_rgba(p.cost)
+                ax.plot(p.x, p.y, alpha=1.0, color=color, zorder=20, picker=picker)
+    
+    # draw planned trajectory
+    if traj is not None:
+        ax.plot(
+            traj.x,
+            traj.y,
+            alpha=1.0,
+            color="yellow",
+            zorder=25,
+            lw=3.0,
+            label="Best trajectory",
+            picker=picker,
+        )
+
+    # draw predictions
+    if predictions is not None:
+        draw_uncertain_predictions(predictions, ax)
+
+    # show the figure until the next one ins ready
+    # plt.savefig(str(i).zfill(4) + ".png")
+    # i += 1
+
+
+
 def draw_MPPI_valid(
     scenario,
     time_step: int,
@@ -924,20 +1010,21 @@ def draw_scenario(
     if planning_problem is not None:
         draw_object(planning_problem, ax=ax)
 
-    if marked_vehicle is not None:
-        # mark the ego vehicle
-        draw_object(
-            obj=scenario.obstacle_by_id(marked_vehicle),
-            draw_params={
-                "time_begin": time_step,
-                "facecolor": "g",
-                "dynamic_obstacle": {
-                    "draw_shape": False,
-                    "draw_bounding_box": False,
-                    "draw_icon": True,
+    for vehicle in marked_vehicle:
+        if vehicle is not None:
+            # mark the ego vehicle
+            draw_object(
+                obj=scenario.obstacle_by_id(vehicle),
+                draw_params={
+                    "time_begin": time_step,
+                    "facecolor": "g",
+                    "dynamic_obstacle": {
+                        "draw_shape": False,
+                        "draw_bounding_box": False,
+                        "draw_icon": True,
+                    },
                 },
-            },
-        )
+            )
 
     # Draw global path
     if global_path is not None:
@@ -975,11 +1062,13 @@ def draw_scenario(
                 if obj.geom_type == "Polygon":
                     ax.fill(*obj.exterior.xy, "g", alpha=0.2, zorder=10)
 
-    # get the target time to show it in the title
-    if hasattr(planning_problem.goal.state_list[0], "time_step"):
-        target_time_string = "Target-time: %.1f s - %.1f s" % (
-            planning_problem.goal.state_list[0].time_step.start * scenario.dt,
-            planning_problem.goal.state_list[0].time_step.end * scenario.dt,
+
+    if planning_problem is not None:
+        # get the target time to show it in the title
+        if hasattr(planning_problem.goal.state_list[0], "time_step"):
+            target_time_string = "Target-time: %.1f s - %.1f s" % (
+                planning_problem.goal.state_list[0].time_step.start * scenario.dt,
+                planning_problem.goal.state_list[0].time_step.end * scenario.dt,
         )
     else:
         target_time_string = "No target-time"

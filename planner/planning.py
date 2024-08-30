@@ -72,7 +72,7 @@ class PlanningAgent(Agent):
         if not hasattr(self.state, "acceleration"):
             self._state.acceleration = 0.0
 
-    def _step_agent(self, delta_time):
+    def _step_agent(self, delta_time, ax=None):
         """Step Agent
 
         This is the step function for a planning agent.
@@ -80,6 +80,7 @@ class PlanningAgent(Agent):
 
         :param delta_time: time since previous step
         """
+
         if self.predictor is not None:
             # with prediction
             self.predictor.step(
@@ -100,6 +101,7 @@ class PlanningAgent(Agent):
             time_step=self.time_step,
             ego_state=self.state,
             prediction=prediction,
+            ax=ax,
         )
 
         if self.control_dynamics is not None:
@@ -284,6 +286,7 @@ class Planner(object):
         ego_state: State,
         prediction=None,
         v_max=50,
+        ax=None,
     ):
         """Main Step Function of the Planner
 
@@ -311,7 +314,7 @@ class Planner(object):
         self.__check_goal_reached()
 
         # call the planner-type depending step function to generate a new trajectory
-        self._step_planner()
+        self._step_planner(ax=ax)
       
 
     def _step_planner(self):

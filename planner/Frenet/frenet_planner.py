@@ -39,7 +39,7 @@ sys.path.append(mopl_path)
 
 from PA_CommonRoad.planner.planning import Planner
 from PA_CommonRoad.planner.utils.timeout import Timeout
-from PA_CommonRoad.planner.Frenet.utils.visualization import draw_frenet_trajectories, draw_optimal_trajectory, draw_MPPI_valid
+from PA_CommonRoad.planner.Frenet.utils.visualization import draw_frenet_trajectories, draw_optimal_trajectory, draw_MPPI_valid, draw_ego_only
 from PA_CommonRoad.planner.Frenet.utils.validity_checks import (
     VALIDITY_LEVELS,
 )
@@ -895,7 +895,7 @@ class FrenetPlanner_SAMPLES(Planner):
         return mppi_planner
 
     
-    def _step_planner(self):
+    def _step_planner(self, ax=None):
 
         """Frenet Planner step function. Generate optimal trajectory using MPPI as opposed to the splines"""
 
@@ -1176,12 +1176,11 @@ class FrenetPlanner_SAMPLES(Planner):
         states = torch.tensor(states, dtype=torch.float32).to(self.cfg.mppi.device)
         # Switch last two dimensions
         states = states.permute(0,2,1)
-        kl_cost = KL_Cost(states, ego_pred_pos, ego_pred_cov, 0.3, 100, discount=0.9)
+        kl_cost = KL_Cost(states, ego_pred_pos, ego_pred_cov, 0.5, 100, discount=0.6)
         kl_cost = kl_cost.tolist()
         # Find index of minimum
         min_cost_index = kl_cost.index(min(kl_cost))
-
-        factor = 0.0
+        factor = 0.1
 
         # Add the KL costs to the trajectory costs
         for i in range(len(ft_list_valid)):
@@ -1268,6 +1267,16 @@ class FrenetPlanner_SAMPLES(Planner):
         #     except Exception as e:
         #         print(e)
        
+
+
+        with self.exec_timer.time_with_cm("plot trajectories"):
+            # print some information about the optimal trajectory
+            matplotlib.use("TKAgg")
+            try:
+                draw_ego_only(optimal_trajectory, ft_list,predictions,ax)
+                
+            except Exception as e:
+                print(e)
 
 
     #######################################################################
