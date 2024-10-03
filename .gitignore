@@ -28,3 +28,10 @@ planner/results/
 planner/plannertools/Frenet/results
 
 tmp*
+
+planner/Frenet/DataCollection
+
+planner/Frenet/figs
+
+planner/Frenet/*.mp4
+
