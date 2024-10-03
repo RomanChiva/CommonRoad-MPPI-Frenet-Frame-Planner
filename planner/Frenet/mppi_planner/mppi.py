@@ -10,6 +10,7 @@ import scipy.interpolate as si
 from dataclasses import dataclass, field
 from abc import ABC, abstractmethod
 from PA_CommonRoad.planner.Frenet.mppi_utils.mppi_utils import generate_gaussian_halton_samples, scale_ctrl, cost_to_go
+from PA_CommonRoad.planner.Frenet.utils.KL_Cost import KL_Cost
 import matplotlib.pyplot as plt
 
 def _ensure_non_zero(cost, beta, factor):
@@ -308,7 +309,7 @@ class MPPIPlanner(ABC):
         return self.actions, self.states
     
 
-    def evaluate_trajectories(self, drop):
+    def evaluate_trajectories(self, drop, predictions, pred_cov, plan_cov, n_samples, discount, weight):
 
 
         # drop: list with indices to drop from self.actions and self.states
@@ -317,11 +318,13 @@ class MPPIPlanner(ABC):
         self.actions = self.actions[mask]
         self.states = self.states[mask]
 
-        
-
      
         cost_total = self.compute_costs_filtered()
-        self.COST = cost_total
+        # Print topk cost total
+        kl_input_states = self.states[:,:,:2]
+        kl_cost = KL_Cost(kl_input_states, predictions, pred_cov, plan_cov, n_samples, discount)
+        cost_total += weight * kl_cost
+        self.COST = cost_total 
 
         # # Plot trajectories and color code with cost
         # fig, ax = plt.subplots()
@@ -366,6 +369,9 @@ class MPPIPlanner(ABC):
         # Print how many values are abobe 0.01
 
         print(torch.sum(self.omega > 0.005), 'Trajectories used')
+        # Sort all in descending order 
+        sorted_ = torch.sort(self.omega, descending=True)
+        print(sorted_, 'Highest Weighted Samples')
 
         self.U += torch.sum(self.omega.view(-1, 1, 1) * self.noise, dim=0)
 
@@ -750,6 +756,18 @@ class MPPIPlanner(ABC):
         self.noise = self.noise_dist.sample((self.K, self.T))
         # Broadcast own control to noise over samples; now it's K x T x nu
         self.perturbed_action = self.U + self.noise
+
+        
+        self.perturbed_action[-1, :] = torch.zeros_like(self.perturbed_action[-1, :])
+        # Make decelerating always an option
+        for i in range(-2, -10, -1):
+            u = torch.ones_like(self.perturbed_action[i, :])
+            u[:, 1] = 0.0
+            u[:, 0] = i/2
+            self.perturbed_action[i, :] = u
+        
+
+
         
         # Naively bound control
         self.perturbed_action = self._bound_action(self.perturbed_action)

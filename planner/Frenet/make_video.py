@@ -15,4 +15,4 @@ def create_video_from_images(image_folder, output_video, framerate=10):
     subprocess.run(ffmpeg_command)
 
 # Example usage
-create_video_from_images('figs', 'output_video.mp4')
+create_video_from_images('figs', 'CROSSING_KL5_NODeadlock.mp4')

@@ -549,11 +549,12 @@ def draw_ego_only(
      # x and y axis description
     ax.set_xlabel("x in m")
     ax.set_ylabel("y in m")
+    pos_x = -35
+    pos_y = 0
 
     # align ego position to the center
-    ax.set_xlim(- animation_area, animation_area)
-    ax.set_ylim(- animation_area,  animation_area)
-
+    ax.set_xlim(- animation_area+pos_x, animation_area+pos_x)
+    ax.set_ylim(- animation_area+pos_y,  animation_area+pos_y)
 
 
 
@@ -575,10 +576,9 @@ def draw_ego_only(
 
         # then plot all valid trajectories
         for p in reversed(all_traj):
-            if p.valid_level >= 10:
-                color = mapper.to_rgba(p.cost)
-                ax.plot(p.x, p.y, alpha=1.0, color=color, zorder=20, picker=picker)
-    
+            color = mapper.to_rgba(p.cost)
+            ax.plot(p.x, p.y, alpha=0.5, color=color, zorder=10, picker=picker)
+
     # draw planned trajectory
     if traj is not None:
         ax.plot(
@@ -594,6 +594,7 @@ def draw_ego_only(
 
     # draw predictions
     if predictions is not None:
+        print('DRAWING EGO PRED')
         draw_uncertain_predictions(predictions, ax)
 
     # show the figure until the next one ins ready

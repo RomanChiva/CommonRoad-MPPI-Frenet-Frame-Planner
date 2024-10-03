@@ -166,9 +166,9 @@ class MPPIisaacPlanner(object):
         return actions, states
 
 
-    def compute_traj(self, drop):
+    def compute_traj(self, drop, predictions, pred_cov, plan_cov, n_samples, discount, weight):
 
-        actions, states = self.mppi.evaluate_trajectories(drop)
+        actions, states = self.mppi.evaluate_trajectories(drop, predictions, pred_cov, plan_cov, n_samples, discount, weight)
 
         actions = actions.cpu()
         # loop over the actions and forward propagate the dynamics to get the trajectory

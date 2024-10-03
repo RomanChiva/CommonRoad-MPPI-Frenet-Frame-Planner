@@ -6,10 +6,10 @@ sampling_method: "random"   # halton, random
 num_samples: 400
 horizon: 20                 # At least 12 for Halton Sampling
 device: "cpu"
-lambda_: 0.5
+lambda_: 1.7
 u_min: [-11.5, -0.4]
 u_max: [11.5, 0.4]
-noise_sigma: [[8.0, 0.0], [0.0, 0.2]]
+noise_sigma: [[4.0, 0.0], [0.0, 0.1]]
 update_cov: False
 rollout_var_discount: 0.95
 sample_null_action: True

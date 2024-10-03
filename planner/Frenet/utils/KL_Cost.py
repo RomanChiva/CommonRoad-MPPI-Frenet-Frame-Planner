@@ -4,12 +4,10 @@ import torch
 
 def KL_Cost(plan_means, prediction, sigma, plan_sigma, n_samples, discount = 0.5):
 
-
-
         # Convert prediction and sigma to tensors
         prediction = torch.tensor(prediction, dtype=torch.float32)
         sigma = torch.tensor(sigma, dtype=torch.float32)
-
+        
 
         # Transform Prediction to the correct FOrmat repeat tensor n_samples times
         prediction = prediction.unsqueeze(0).expand(n_samples, -1, -1, -1)
@@ -24,7 +22,9 @@ def KL_Cost(plan_means, prediction, sigma, plan_sigma, n_samples, discount = 0.5
 
         # Compute KL Divergence and discount it
         kl_div = torch.mean(score_plan - score_pred, dim=0)
+        kl_div = kl_div.T
         kl_div = discount_weighted_horizon(kl_div, discount)
+        kl_div = kl_div.T
         kl_div = torch.sum(kl_div, dim=1)        
 
 

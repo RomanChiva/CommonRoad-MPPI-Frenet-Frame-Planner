@@ -5,14 +5,14 @@ from scipy.optimize import minimize_scalar
 import pickle
 import time
 
-
 class Objective(object):
-    def __init__(self, cfg, device, reference_spline, global_path, prediction):
+    def __init__(self, cfg, device, reference_spline, global_path, prediction, target_v):
         self.nav_goal = torch.tensor(cfg.goal, device=device)
         self.v_ref = torch.tensor(cfg.v_ref, device=device)
         self.reference_spline = reference_spline
         self.global_path = global_path
         self.prediction = prediction
+        self.target_v = target_v
 
     # Function to find the closest point on the global path to the given (x, y)
     def find_closest_s(self, x, y):
@@ -329,6 +329,9 @@ class Objective(object):
 
         return s_list, d_list
 
+    def velocity_cost(self, states):
+        return torch.square(states[:, :,3] - self.target_v).T
+
         
 
 
@@ -383,19 +386,24 @@ class Objective(object):
             
         costs_s = torch.stack(cost_s, dim=0)
         costs_d = torch.stack(cost_d, dim=0)
-
+        velocity_cost = self.velocity_cost(states)
         # Sum them along time direction
         costs_s_av = torch.sum(costs_s, dim=0)
         costs_d_av = torch.sum(costs_d, dim=0)
+        velocity_cost_av = torch.sum(velocity_cost, dim=0)
         # Print average
         print("Average progress cost: ", torch.mean(costs_s_av))
         print("Average deviation cost: ", torch.mean(costs_d_av))
+        print("Average velocity cost: ", torch.mean(velocity_cost_av))
+
+
 
         # Add them and include weights
-        w_s = 1.0
-        w_d = 1.0
-        road_boundary_factor = 1.0
-        costs = w_s*costs_s + w_d*(costs_d*road_boundary_factor)**2
+        w_s = 0.3
+        w_d = 5.0
+        w_v = 0.05
+        
+        costs = w_s*costs_s + w_d*(costs_d)**2 + w_v*velocity_cost
         
 
         return costs
