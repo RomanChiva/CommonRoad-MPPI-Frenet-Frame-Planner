@@ -38,6 +38,23 @@ from PA_CommonRoad.planner.Frenet.utils.visualization import animate_scenario, d
 
 import matplotlib.pyplot as plt
 
+import os
+import shutil
+
+
+# Wipe all contents of: /home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/
+
+for filename in os.listdir('/home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/'):
+    file_path = os.path.join('/home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/', filename)
+    try:
+        if os.path.isfile(file_path) or os.path.islink(file_path):
+            os.unlink(file_path)
+        elif os.path.isdir(file_path):
+            shutil.rmtree(file_path)
+    except Exception as e:
+        print('Failed to delete %s. Reason: %s' % (file_path, e))
+
+
 
 class ScenarioHandler:
     """Generic class for looping a scenario with a planner."""
@@ -163,6 +180,10 @@ class ScenarioHandler:
             # run the simulation not longer to avoid simulating forever
             max_simulation_time_steps = int(max_time_steps * 2.0)
 
+        
+
+
+
         for time_step in range(max_simulation_time_steps):
 
             
@@ -193,7 +214,8 @@ class ScenarioHandler:
                 # Potentially save figs?
             plt.pause(0.01)
             # Save fig
-            plt.savefig(f"/home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/fig_{time_step}.png")
+            plt.savefig(f"/home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/t_{time_step}.svg")
+            plt.savefig(f"/home/roman/Documents/CommonRoad/PA_CommonRoad/planner/Frenet/figs/t_{time_step}.png")
             
 
 

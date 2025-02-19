@@ -12,6 +12,7 @@ from abc import ABC, abstractmethod
 from PA_CommonRoad.planner.Frenet.mppi_utils.mppi_utils import generate_gaussian_halton_samples, scale_ctrl, cost_to_go
 from PA_CommonRoad.planner.Frenet.utils.KL_Cost import KL_Cost
 import matplotlib.pyplot as plt
+import copy 
 
 def _ensure_non_zero(cost, beta, factor):
     return torch.exp(-factor * (cost - beta))
@@ -302,6 +303,7 @@ class MPPIPlanner(ABC):
 
         # Generate the trajectories (Stick to using simple MPPI)
         self.U = torch.roll(self.U, -1, dims=0)
+        print(self.U, 'ACTIONS USED TO WARMSTART THE PLANNER')
 
         self.actions, self.states = self.perturb_and_prop_state()
 
@@ -326,36 +328,12 @@ class MPPIPlanner(ABC):
         cost_total += weight * kl_cost
         self.COST = cost_total 
 
-        # # Plot trajectories and color code with cost
-        # fig, ax = plt.subplots()
-        # ax.set_title('Trajectories')
-        # ax.set_xlabel('x')
-        # ax.set_ylabel('y')
-        # ax.set_aspect('equal')
-
-        # min_cost = torch.min(cost_total)
-        # max_cost = torch.max(cost_total)
-        # print('Min Cost: ', min_cost)
-        # print('Max Cost: ', max_cost)
-        # # User these to construct a color map
-        # norm = plt.Normalize(min_cost, max_cost)
-        # cmap = plt.get_cmap('viridis')
-        
-        # for i in range(self.states.shape[0]):
-        #     ax.plot(self.states[i,:,0].cpu().numpy(), self.states[i,:,1].cpu().numpy(), color=cmap(norm(cost_total[i].item())))
-        
-        # sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-        # sm.set_array([])
-        # fig.colorbar(sm, ax=ax)
-        # plt.show()
+      
 
        
         beta = torch.min(cost_total)
 
-        # Assuming `values` is your list of values
-        # plt.hist(cost_total, bins='auto')
-        # plt.title("Histogram with 'auto' bins")
-        # plt.show()
+   
 
         self.cost_total_non_zero = _ensure_non_zero(cost_total, beta, 1 / self.lambda_)
         
@@ -368,12 +346,11 @@ class MPPIPlanner(ABC):
 
         # Print how many values are abobe 0.01
 
-        print(torch.sum(self.omega > 0.005), 'Trajectories used')
         # Sort all in descending order 
         sorted_ = torch.sort(self.omega, descending=True)
-        print(sorted_, 'Highest Weighted Samples')
 
         self.U += torch.sum(self.omega.view(-1, 1, 1) * self.noise, dim=0)
+        print(self.U, 'ACTIONS AFTER EVALUATING TRAJECTORIES')
 
         action = self.U
 
@@ -409,13 +386,11 @@ class MPPIPlanner(ABC):
 
    
 
-
         # Reduce dimensionality if we only need the first command
         if self.u_per_command == 1:
             action = action[0]
 
         if self.return_states:
-            
             return action, self.states
         else:
             return action

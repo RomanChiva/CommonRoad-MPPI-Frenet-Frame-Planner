@@ -545,12 +545,14 @@ def draw_ego_only(
     """
 
     
-    animation_area = 50
+    animation_area = 30.0
      # x and y axis description
     ax.set_xlabel("x in m")
     ax.set_ylabel("y in m")
-    pos_x = -35
-    pos_y = 0
+    pos_x = 5
+    pos_y = 5
+    # pos_x = -370
+    # pos_y = 250
 
     # align ego position to the center
     ax.set_xlim(- animation_area+pos_x, animation_area+pos_x)

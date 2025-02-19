@@ -300,6 +300,8 @@ class FrenetPlanner_MPPI(Planner):
         # Initialize the trajectory dictionary
         self._data = {'plan':[], 'action':[], 'cost':[], 'state':[]}
 
+        self.mppi_planner = self._set_planner(self.cfg)
+
 
     # Load the requred MPPI Settings
     def _load_config(self):
@@ -309,7 +311,7 @@ class FrenetPlanner_MPPI(Planner):
         return config
 
     # Create the Planner (Wapper around the core MPPI Class to ease interactions, like an interface)
-    def _set_planner(self, cfg, prediction, target_v):
+    def _set_planner(self, cfg):
         """
         Initializes the mppi planner for jackal robot.
 
@@ -319,9 +321,7 @@ class FrenetPlanner_MPPI(Planner):
             The goal to the motion planning problem.
         """
 
-        
-        objective = Objective(cfg, cfg.mppi.device, self.reference_spline, self.global_path, prediction, target_v)
-        mppi_planner = MPPIisaacPlanner(cfg, objective)
+        mppi_planner = MPPIisaacPlanner(cfg, None)
 
         return mppi_planner
 
@@ -491,7 +491,8 @@ class FrenetPlanner_MPPI(Planner):
         # Generate MPPI TRAJECTORIES
         ########################################################################
 
-        mppi_planner = self._set_planner(self.cfg, predictions, 6)
+        objective = Objective(self.cfg, self.cfg.mppi.device, self.reference_spline, self.global_path, predictions, 5)
+        self.mppi_planner.update_objective(objective)
 
         # Get all the encessary attributes from the ego state (Steering angle only becomes available later on (We create it ourselves))
         try:
@@ -502,10 +503,9 @@ class FrenetPlanner_MPPI(Planner):
  
         vehicle_state = [self.ego_state.position[0], self.ego_state.position[1], self.ego_state.orientation, self.ego_state.velocity, steering_angle]
         vehicle_velocity = [self.ego_state.velocity]
-        print('Velocity Ego:', vehicle_velocity)
 
         # Generate trajectories
-        actions, states = mppi_planner.get_samples(q=vehicle_state, qdot=vehicle_velocity)
+        actions, states = self.mppi_planner.get_samples(q=vehicle_state, qdot=vehicle_velocity)
 
         # Visualize MPPI Trajectories plot X, Y 
         # Plot in a new figure an stop execution
@@ -516,7 +516,7 @@ class FrenetPlanner_MPPI(Planner):
 
         # Convert the trajectories to frenet frame and fit them to the trajectory list format
         states_numpy = states.cpu().numpy()
-        s, d = mppi_planner.convert_to_frenet(states)
+        s, d = self.mppi_planner.convert_to_frenet(states)
 
         # Get the frenet trajectories
         ft_list_1 = C2F(s,d, states_numpy, self.frenet_parameters["dt"], self.p.w/0.1)
@@ -575,16 +575,15 @@ class FrenetPlanner_MPPI(Planner):
 
         reason = [ft.reason_invalid for ft in ft_list_invalid]
         drop = [ft.traj_index for ft in ft_list_invalid]
-        print(len(ft_list_valid), len(ft_list_invalid), 'Valid and Invalid Trajectories')
         # Process Necessary Stuff
-        action, plan, all_trajs, COST = mppi_planner.compute_traj(drop, 
+        action, plan, all_trajs, COST = self.mppi_planner.compute_traj(drop, 
                                                                   ego_pred_pos, 
                                                                   ego_pred_cov, 
                                                                   0.1, 
                                                                   100, 
                                                                   0.9, 
-                                                                  5.0)
-        cost_optimal = mppi_planner.running_cost(plan.unsqueeze(0))
+                                                                  0.0)
+        cost_optimal = self.mppi_planner.running_cost(plan.unsqueeze(0))
         cost_optimal = cost_optimal.cpu().numpy()
         # # Make a histogram of the costs and plot it in a separate window
         # figz,axz = plt.subplots()
@@ -600,9 +599,6 @@ class FrenetPlanner_MPPI(Planner):
         # print(predictions[dyn_visible_obstacles[0]], 'Predictions')
         # print(ego_pred_pos, 'Ego Predictions')
         # print(ego_pred_cov, 'Ego Predictions Covariance')
-
-
-        
 
         self._data['plan'].append(plan.cpu().numpy())
         self._data['action'].append(action.cpu().numpy())
@@ -622,7 +618,7 @@ class FrenetPlanner_MPPI(Planner):
             ft_list_valid[i].cost = COST[i]
         
         plan_extra_dim = plan.unsqueeze(0)
-        s, d = mppi_planner.convert_to_frenet(plan_extra_dim)
+        s, d = self.mppi_planner.convert_to_frenet(plan_extra_dim)
         optimal_traj = C2F(s,d, plan_extra_dim, self.frenet_parameters["dt"], self.p.w/0.1)[0]
 
         # Mapping tensor columns to dictionary keys
@@ -881,6 +877,8 @@ class FrenetPlanner_SAMPLES(Planner):
                 self.exec_timer.stop_timer("initialization/total")
         except ExecutionTimeoutError:
             raise TimeoutError
+         # Initialize the trajectory dictionary
+        self._data = {'plan':[], 'action':[], 'cost':[], 'state':[]}
 
 
     # Load the requred MPPI Settings
@@ -1193,7 +1191,7 @@ class FrenetPlanner_SAMPLES(Planner):
         kl_cost = kl_cost.tolist()
         # Find index of minimum
         min_cost_index = kl_cost.index(min(kl_cost))
-        factor = 0
+        factor = 5.0
 
         # Add the KL costs to the trajectory costs
         for i in range(len(ft_list_valid)):
@@ -1252,6 +1250,25 @@ class FrenetPlanner_SAMPLES(Planner):
         self._trajectory['d_loc_m'] = optimal_trajectory.d
         self._trajectory['d_d_loc_mps'] = optimal_trajectory.d_d
         self._trajectory['d_dd_loc_mps2'] = optimal_trajectory.d_dd
+        
+        cost_optimal = optimal_trajectory.cost
+        xy = [optimal_trajectory.x, optimal_trajectory.y]
+        plan = np.array(xy).T
+        angular_velocity = np.arctan(self.p.l*optimal_trajectory.curv)
+        acc = optimal_trajectory.s_dd
+        action = [acc, angular_velocity]
+
+
+        self._data['plan'].append(plan)
+        self._data['action'].append(action)
+        self._data['cost'].append(cost_optimal)
+        self._data['state'].append(vehicle_state)
+        
+
+        file_path = f'data_collection/FrenetPlanner_Crossing_KL5_{self.ego_id}_5.pkl'
+
+        with open(file_path, 'wb') as f:
+            pickle.dump(self._data, f)
 
 
       
